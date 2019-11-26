@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include "linetodata.h"
+#include "isc.h"
 
 double ***coil_grid(int *num_coils, int **num_segs)
 {
