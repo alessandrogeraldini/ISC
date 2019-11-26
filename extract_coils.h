@@ -1,1 +1,0 @@
-double ***coil_grid();
