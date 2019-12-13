@@ -54,18 +54,24 @@ double **set_identity();
 
 struct position addstructs(double num1, struct position *struct1, double num2, struct position *struct2);
 
+struct field addstructsfield(double num1, struct field *struct1, double num2, struct field *struct2);
+
 double ***coil_grid();
 
 struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils, int **num_segs);
+
+struct field *DommBfield(int N_modes, double *amp, int *tor_mode, int *pol_mode, double R, double Z, double phi); 
  
 void RK4(struct position *Xp, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs);
 
-struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct position *fieldline);
+struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int N_gridphi_toroidal);
 
-void iotaprofile(double *rmin, double *iota, double ***coils, int *n_coils, int **n_segs);
+void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int *n_coils, int **n_segs);
 
-struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int tor_mode, int pol_mode);
+struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 
-struct ext_position *alongcentre(double RR, double ZZ, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
+struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
 
-double *islandwidth(struct ext_position *ext_fieldline, int tor_mode, int pol_mode);
+double *islandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+
+int fac(int number);

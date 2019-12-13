@@ -64,6 +64,17 @@ struct position addstructs(double num1, struct position *struct1, double num2, s
 	return structsum;
 }
 
+struct field addstructsfield(double num1, struct field *struct1, double num2, struct field *struct2) {
+	struct field structsum;
+	int index1, index2;
+	for (index1=0;index1<3;index1++) {
+		structsum.value[index1] = num1*struct1->value[index1] + num2*struct2->value[index1];
+		for (index2=0;index2<2;index2++)	
+		structsum.derivative[index1][index2] = num1*struct1->derivative[index1][index2] + num2*struct2->derivative[index1][index2];
+	}
+	return structsum;
+}
+
 //struct ext_position addextstructs(double num1, struct ext_position *struct1, double num2, struct ext_position *struct2)
 //{
 //	struct ext_position structsum;
@@ -93,14 +104,15 @@ void RK4(struct position *Xp, double varphi, double dvarphi, double ***coils, in
 	int i=0;
 	Xpold = *Xp;
 	Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
+	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
 	dXp1 = func(Bpoint, Xp);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp1);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	Bpoint = Bfield(Xp->loc, varphi+(dvarphi/2.0), coils, num_coils, num_segs);
+	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	dXp2 = func(Bpoint, Xp);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp2);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	Bpoint = Bfield(Xp->loc, varphi+(dvarphi/2.0), coils, num_coils, num_segs);
+	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	dXp3 = func(Bpoint, Xp);
 	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp3);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);

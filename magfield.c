@@ -8,7 +8,6 @@ double ***coil_grid(int *num_coils, int **num_segs)
 {
 clock_t start = clock();
 int lenline = 1000, line_num, ii=0;
-double **X_coil=NULL, **Y_coil=NULL, **Z_coil=NULL, **I_coil=NULL;
 double *storevals;
 char line[lenline];
 int nn, max_num_segs, num_coils_temp=0, coil_index=0, coilseg_index=0, *num_segs_temp;
@@ -108,22 +107,19 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	double BZ=0.0, BX=0.0, BY=0.0, BR=0.0, Bvarphi=0.0, dBXdR=0.0, dBYdR=0.0, dBZdR=0.0, dBXdZ=0.0, dBYdZ=0.0, dBZdZ=0.0, dBRdR=0.0, dBvarphidR=0.0, dBRdZ=0.0, dBvarphidZ=0.0;
 	double Xminxc=0.0, Yminyc=0.0, Zminzc=0.0, Rminrc=0.0, dl=0.0, dxc=0.0, dyc=0.0, dzc=0.0;
 	double XX=Xp[0]*cos(varphi), YY=Xp[0]*sin(varphi), ZZ = Xp[1];
-	struct field *magfield=calloc(1,sizeof(struct field));
+	struct field *magfield = calloc(1,sizeof(struct field)), *magfielddR = calloc(1,sizeof(struct field)), *magfielddZ = calloc(1,sizeof(struct field));
+	struct field dmagfielddR, dmagfielddZ;
 	int coil_index=0, coilseg_index=0; 
-	int derivatives[2];
-	int check = 0;
+	int check_coil = 0, check_Domm = 0, Dommaschk=1;
 	double XpdR, YpdR, RpdRminrc, XpdRminxc, YpdRminyc, BXpdR, BYpdR, BZpdR, dR = 0.0001;
 	double RpdZminrc, ZpdZminzc, BXpdZ, BYpdZ, BZpdZ, dZ = 0.0001;
-	derivatives[0]=1;
-	//int j, k;
-
-	//n_coils = *num_coils;
-	//n_segs = calloc(n_coils,sizeof(int));
-	//n_segs = *num_segs;
-
+	double amp_Domm[1]; 
+	int pol_Domm[1], tor_Domm[1];
+	//amp_Domm[0]=1.73; pol_Domm[0] = 2; tor_Domm[0] = 5;
+	amp_Domm[0]=2.0; pol_Domm[0] = 5; tor_Domm[0] = 5;
+	//amp_Domm[0]=0.001; pol_Domm[0] = 4; tor_Domm[0] = 8;
+	//amp_Domm[0]=0.00000; pol_Domm[0] = 2; tor_Domm[0] = 5;
 	//printf("n_segs[1]=%d\n", n_segs[1]);
-
-	//j=3; k = 198;
 	//printf("Sanity check: print line of coil file\n");
 	//printf("coils[0][%d][%d]=%f\n", j, k, coils[0][j][k]);
 	//printf("coils[1][%d][%d]=%f\n", j, k, coils[1][j][k]);
@@ -134,30 +130,32 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	//printf("coils[1][0][1]=%Le\n", coils[1][0][1]);
 	//printf("coils[2][0][1]=%Le\n", coils[2][0][1]);
 	//printf("coils[3][0][1]=%Le\n", coils[3][0][1]);
-	for (coil_index=0;coil_index<*num_coils;coil_index++)
-	{
-		//printf("num_coils = %d\n", *num_coils);
-		//printf("coil_index = %d\n", coil_index);
-		for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
+	if (Dommaschk == 1) {
+		magfield = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0], Xp[1], varphi);
+	}
+	else {
+		for (coil_index=0;coil_index<*num_coils;coil_index++)
 		{
-			//printf("num_segs[%d] = %d\n", coil_index, *(*num_segs+coil_index));
-			//printf("coilseg_index = %d\n", coilseg_index);
-			Xminxc = XX - 0.5*coils[0][coil_index][coilseg_index] - 0.5*coils[0][coil_index][coilseg_index+1];
-			Yminyc = YY - 0.5*coils[1][coil_index][coilseg_index] - 0.5*coils[1][coil_index][coilseg_index+1]; 
-			Zminzc = ZZ - 0.5*coils[2][coil_index][coilseg_index] - 0.5*coils[2][coil_index][coilseg_index+1]; 
-			Rminrc = sqrt(pow(Xminxc,  2.0) + pow(Yminyc, 2.0) + pow(Zminzc, 2.0)); 
-
-			dxc = coils[0][coil_index][coilseg_index+1] - coils[0][coil_index][coilseg_index];
-			dyc = coils[1][coil_index][coilseg_index+1] - coils[1][coil_index][coilseg_index];
-			dzc = coils[2][coil_index][coilseg_index+1] - coils[2][coil_index][coilseg_index];
-			dl = sqrt(pow(dxc, 2.0) + pow(dyc, 2.0) + pow(dzc, 2.0));
-
-			BX += (coils[3][coil_index][coilseg_index]*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 3.0));
-			BY += (coils[3][coil_index][coilseg_index]*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 3.0));
-			BZ += (coils[3][coil_index][coilseg_index]*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 3.0));
-			
-			if (derivatives[0] == 1)
+			//printf("num_coils = %d\n", *num_coils);
+			//printf("coil_index = %d\n", coil_index);
+			for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
 			{
+				//printf("num_segs[%d] = %d\n", coil_index, *(*num_segs+coil_index));
+				//printf("coilseg_index = %d\n", coilseg_index);
+				Xminxc = XX - 0.5*coils[0][coil_index][coilseg_index] - 0.5*coils[0][coil_index][coilseg_index+1];
+				Yminyc = YY - 0.5*coils[1][coil_index][coilseg_index] - 0.5*coils[1][coil_index][coilseg_index+1]; 
+				Zminzc = ZZ - 0.5*coils[2][coil_index][coilseg_index] - 0.5*coils[2][coil_index][coilseg_index+1]; 
+				Rminrc = sqrt(pow(Xminxc,  2.0) + pow(Yminyc, 2.0) + pow(Zminzc, 2.0)); 
+
+				dxc = coils[0][coil_index][coilseg_index+1] - coils[0][coil_index][coilseg_index];
+				dyc = coils[1][coil_index][coilseg_index+1] - coils[1][coil_index][coilseg_index];
+				dzc = coils[2][coil_index][coilseg_index+1] - coils[2][coil_index][coilseg_index];
+				dl = sqrt(pow(dxc, 2.0) + pow(dyc, 2.0) + pow(dzc, 2.0));
+
+				BX += (coils[3][coil_index][coilseg_index]*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 3.0));
+				BY += (coils[3][coil_index][coilseg_index]*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 3.0));
+				BZ += (coils[3][coil_index][coilseg_index]*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 3.0));
+				
 				dBXdR += (coils[3][coil_index][coilseg_index]*(dyc*0.0         - dzc*sin(varphi))/pow(Rminrc, 3.0));
 				dBYdR += (coils[3][coil_index][coilseg_index]*(dzc*cos(varphi) - dxc*0.0        )/pow(Rminrc, 3.0));
 				dBZdR += (coils[3][coil_index][coilseg_index]*(dxc*sin(varphi) - dyc*cos(varphi))/pow(Rminrc, 3.0));
@@ -175,15 +173,11 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 				dBZdZ -= 3*(coils[3][coil_index][coilseg_index]*(Zminzc)*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 5.0));
 			}
 		}
-	}
 
-	//magfield = calloc(9,sizeof(double)); // first triplet B; if derivatives[0] ==1: second triplet dB/dR, third triplet dB/dZ 
-	BX*=pow(10.0,-7.0); BY*=pow(10.0,-7.0); BZ*=pow(10.0,-7.0); // multiply by mu_0/4*PI
-	BR = cos(varphi)*BX + sin(varphi)*BY; Bvarphi = -sin(varphi)*BX + cos(varphi)*BY; // BZ = BZ;
-	magfield->value[0] = BR; magfield->value[1] = BZ; magfield->value[2] = Bvarphi;
-	if (derivatives[0]==1)
-	{
-		//printf("dBXdR=%f\n", dBXdR);
+		//magfield = calloc(9,sizeof(double)); // first triplet B; if derivatives[0] ==1: second triplet dB/dR, third triplet dB/dZ 
+		BX*=pow(10.0,-7.0); BY*=pow(10.0,-7.0); BZ*=pow(10.0,-7.0); // multiply by mu_0/4*PI
+		BR = cos(varphi)*BX + sin(varphi)*BY; Bvarphi = -sin(varphi)*BX + cos(varphi)*BY; // BZ = BZ;
+		magfield->value[0] = BR; magfield->value[1] = BZ; magfield->value[2] = Bvarphi;
 		dBXdR*=pow(10.0,-7.0); dBYdR*=pow(10.0,-7.0); dBZdR*=pow(10.0,-7.0); // multiply by mu_0/4*PI
 		dBXdZ*=pow(10.0,-7.0); dBYdZ*=pow(10.0,-7.0); dBZdZ*=pow(10.0,-7.0); // multiply by mu_0/4*PI
 		dBRdR = dBXdR*cos(varphi) + dBYdR*sin(varphi); dBvarphidR = -dBXdR*sin(varphi) + dBYdR*cos(varphi);
@@ -197,7 +191,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 		magfield->derivative[2][1] = dBvarphidZ;
 	}
 
-	if (check==1) {
+	if (check_coil==1) {
 		BX = 0.0; BY = 0.0; BZ = 0.0;
 		BXpdR = 0.0; BYpdR = 0.0, BZpdR = 0.0;
 		BXpdZ = 0.0; BYpdZ = 0.0, BZpdZ = 0.0;
@@ -246,15 +240,37 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 		dBRdR = dBXdR*cos(varphi) + dBYdR*sin(varphi); dBvarphidR = -dBXdR*sin(varphi) + dBYdR*cos(varphi);
 		dBRdZ = dBXdZ*cos(varphi) + dBYdZ*sin(varphi); dBvarphidZ = -dBXdZ*sin(varphi) + dBYdZ*cos(varphi);
 
-		printf("%f %f\n", magfield->derivative[0][0], dBRdR);
-		printf("%f %f\n", magfield->derivative[1][0], dBZdR);
-		printf("%f %f\n", magfield->derivative[2][0], dBvarphidR);
-		printf("%f %f\n", magfield->derivative[0][1], dBRdZ);
-		printf("%f %f\n", magfield->derivative[1][1], dBZdZ);
-		printf("%f %f\n", magfield->derivative[2][1], dBvarphidZ);
+		//printf("%f %f\n", magfield->derivative[0][0], dBRdR);
+		//printf("%f %f\n", magfield->derivative[1][0], dBZdR);
+		//printf("%f %f\n", magfield->derivative[2][0], dBvarphidR);
+		//printf("%f %f\n", magfield->derivative[0][1], dBRdZ);
+		//printf("%f %f\n", magfield->derivative[1][1], dBZdZ);
+		//printf("%f %f\n", magfield->derivative[2][1], dBvarphidZ);
+	}
+	if (check_Domm==1) {
+		magfielddR = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0]+dR, Xp[1], varphi);
+		magfielddZ = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0], Xp[1]+dZ, varphi);
+		BX = 0.0; BY = 0.0; BZ = 0.0;
+		BXpdR = 0.0; BYpdR = 0.0; BZpdR = 0.0;
+		BXpdZ = 0.0; BYpdZ = 0.0; BZpdZ = 0.0;
+		dBXdR = 0.0; dBYdR = 0.0; dBZdR = 0.0;
+		dBXdZ = 0.0; dBYdZ = 0.0; dBZdZ = 0.0;
+		BXpdR = 0.0; BYpdR = 0.0; BZpdR = 0.0;
+		dmagfielddR = addstructsfield(1/dR, magfielddR, -1/dR, magfield);
+		dmagfielddZ = addstructsfield(1/dZ, magfielddZ, -1/dZ, magfield);
+		printf("dBRdR   %f %f\n", dmagfielddR.value[0], magfield->derivative[0][0]);
+		printf("dBZdR   %f %f\n", dmagfielddR.value[1], magfield->derivative[1][0]);
+		printf("dBphidR %f %f\n", dmagfielddR.value[2], magfield->derivative[2][0]);
+		printf("dBRdZ   %f %f\n", dmagfielddZ.value[0], magfield->derivative[0][1]);
+		printf("dBZdZ   %f %f\n", dmagfielddZ.value[1], magfield->derivative[1][1]);
+		printf("dBphidZ %f %f\n", dmagfielddZ.value[2], magfield->derivative[2][1]);
+		//printf("%f %f\n", magfield->derivative[1][0], dBZdR);
+		//printf("%f %f\n", magfield->derivative[2][0], dBvarphidR);
+		//printf("%f %f\n", magfield->derivative[0][1], dBRdZ);
+		//printf("%f %f\n", magfield->derivative[1][1], dBZdZ);
+		//printf("%f %f\n", magfield->derivative[2][1], dBvarphidZ);
 	}
 	//clock_t int3 = clock();
 	//printf("Time after evaluating B field at a point: %f\n", (double) (int3-start)/CLOCKS_PER_SEC);
 	return magfield;
 }
-
