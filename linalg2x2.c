@@ -66,13 +66,14 @@ double **invert2x2(double **input2x2, double* pdet_tangent) {
 	for (i=0;i<2;i++) {
 		result[i] = malloc(2*sizeof(double));
 	}
-	//printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
+	printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
 	*pdet_tangent = input2x2[0][0]*input2x2[1][1] - input2x2[0][1]*input2x2[1][0];
 	result[0][0] =  input2x2[1][1]/(*pdet_tangent);
 	result[1][1] =  input2x2[0][0]/(*pdet_tangent);
 	result[0][1] = -input2x2[0][1]/(*pdet_tangent);
 	result[1][0] = -input2x2[1][0]/(*pdet_tangent);
-	//printf("det =%f\n", *pdet_tangent);
+	printf("det =%f\n", *pdet_tangent);
+	printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
 	return result;
 }
 
@@ -96,13 +97,13 @@ double **multiply2x2(double **input2x2, double **input2xdims, int dims) {
 	for (i=0;i<2;i++) {
 		result[i] = malloc(dims*sizeof(double*));
 	}
-	//printmat("input2x2", input2x2, 2, 2);
-	//printmat("input2xdims", input2xdims, 2, dims);
+	printmat("input2x2", input2x2, 2, 2);
+	printmat("input2xdims", input2xdims, 2, dims);
 	for (i=0;i<dims;i++) {
 		result[0][i] = input2x2[0][0]*input2xdims[0][i] + input2x2[0][1]*input2xdims[1][i]; //input2xdims[1][i];
 		result[1][i] = input2x2[1][0]*input2xdims[0][i] + input2x2[1][1]*input2xdims[1][i]; //input2xdims[1][i];
 	}
-	//printmat("result = input2x2*input2xdims", result, 2, dims);
+	printmat("result = input2x2*input2xdims", result, 2, dims);
 	return result;
 }
 
@@ -146,6 +147,13 @@ void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval) {
 		evec_smalleval[0] = evecs[0][1]; evec_smalleval[1] = evecs[1][1];	
 		evec_largeeval[0] = evecs[0][0]; evec_largeeval[1] = evecs[1][0];	
 	}
+	//free(symm[0]);
+	//free(symm[1]);
+	//free(evecs[0]);
+	//free(evecs[1]);
+	//free(symm);
+	//free(evecs);
+	//free(evals);
 }
 
 double inner(double *left_vect, double **matrix, double *right_vect) {

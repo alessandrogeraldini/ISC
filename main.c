@@ -9,16 +9,13 @@
 int main()
 {
 	clock_t start = clock();
-	int N_gridphi_per_field_period=30, m0_symmetry=5, N_gridphi_tor=N_gridphi_per_field_period*m0_symmetry;
-	int *n_coils=NULL, **n_segs=NULL, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode = 5, tor_mode = 5;
-	int make_Poincare_iota=2, find_axis = 2, find_islands=2, n_points=20, N_field_periods_map = 2000;
-	//struct field *BB;
-	struct position *Xp=calloc(1,sizeof(struct position)), *axis, *island_centre;
+	int N_gridphi_per_field_period=50, m0_symmetry=1, N_gridphi_tor=N_gridphi_per_field_period*m0_symmetry;
+	int *n_coils=NULL, **n_segs=NULL, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode = 6, tor_mode = 1, index;
+	int make_Poincare_iota=2, find_axis = 2, find_islands=2, n_points=15; 
+	struct position *Xp=calloc(1,sizeof(struct position)), *axis, *island_centre, *Xpgrad;
 	struct ext_position *ext_centre;
-	double varphi=0.0; 
-	struct field *Bpoint;
 	double ***coils=NULL, *width;
-	double r_interval = 0.002, *iota=NULL, *minor_radius=NULL;
+	double r_interval = 0.1, *iota=NULL, *minor_radius=NULL;
 	double **evec=malloc(2*sizeof(double*)), *eval=malloc(2*sizeof(double)), trace, det, iota_axis;
 	evec[0]=malloc(2*sizeof(double)); evec[1]=malloc(2*sizeof(double));
 	/* make arrays of coils */
@@ -54,18 +51,20 @@ int main()
 	/* make Poincare plots (optional) */
 	if (make_Poincare_iota==1) {
 		//Xp->loc[0] = 1.09; Xp->loc[1]=0.0;
-		Xp->loc[0] = 1.009; Xp->loc[1]=0.0;
+		Xp->loc[0] = 1.15; Xp->loc[1]=0.0;
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
 		//printf("centre is (%f, %f)\n", Xp->loc[0], Xp->loc[1]);
-		printf("yolo\n");
+		minor_radius = malloc(n_points*sizeof(double));
+		iota = malloc(n_points*sizeof(double));
+		printf("About to enter Poincare module\n");
 		iotaprofile(Xp->loc[0], r_interval, n_points, m0_symmetry, N_gridphi_per_field_period, minor_radius, iota, coils, n_coils, n_segs);
 		clock_t int3 = clock();
 		printf("Time after filling Poincare plot file: %f\n", (double) (int3-start)/CLOCKS_PER_SEC);
 	}
 
 	if (find_islands == 1) {
-		tor_mode = 6;
-		pol_mode = 3;
+		tor_mode = 1;
+		pol_mode = 6;
 		//Xp->loc[0] = 1.3; Xp->loc[1]= -0.515; // island is at(1.299008, -0.515194)
 		//Xp->loc[0] = 1.299009; Xp->loc[1]= -0.515194; // NCSX: island is at(1.299008, -0.515194)
 		//Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
@@ -84,14 +83,28 @@ int main()
 		//island_centre = findisland(coils, n_coils, n_segs, Xp, m0_symmetry, N_gridphi_per_field_period, 5, 2);
 		//ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, 5, 2, coils, n_coils, n_segs);
 		//width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, 5, 2);
-		Xp->loc[0] = 1.0097; Xp->loc[1]= 0.0; // Dommaschk (5,2) amp 0.00001 
+		//Xp->loc[0] = 1.0097; Xp->loc[1]= 0.0; // Dommaschk (5,2) amp 0.00001 
+
+		Xp->loc[0] = 1.21; Xp->loc[1]= 0.0; // Dommaschk (5,2) amp 0.00001 
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
 		island_centre = findisland(coils, n_coils, n_segs, Xp, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 		width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		//Xpgrad = gradcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 	}
 
 	//BB = Bfield(Xp->loc, varphi, coils, n_coils, n_segs);  //printf("BR(R=%f,Z=%f)=%f\n", Xp->loc[0], Xp->loc[1], BB->value[0]); //clock_t int2 = clock(); //printf("Time after evaluating B field: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
+	free(Xp->tangent[0]); free(Xp->tangent[1]);
+	free(Xp->tangent);
+	free(evec[0]); free(evec[1]);
+	free(evec);
+	free(eval);
+	for (index = 0; index < *n_coils; index++) {
+		free(coils[0][index]); free(coils[1][index]); free(coils[2][index]); free(coils[3][index]);
+	}
+	free(coils[0]); free(coils[1]); free(coils[2]); free(coils[3]);
+	free(minor_radius);
+	free(iota);
 	
 	return 0;
 }

@@ -49,11 +49,11 @@ struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct 
 		inverseT = invert2x2(fieldline->tangent, &det_tangent);
 		//printstruct("fieldline", fieldline); //printf("det(tangent)=%f\n", det_tangent);
 		pdeltafieldline = calloc(2,sizeof(double*)); 
-		*pdeltafieldline     = &deltafieldline.loc[0];
-		*(pdeltafieldline+1) = &deltafieldline.loc[1];
-		jumptocentre = multiply2x2(inverseTminusI, pdeltafieldline, 1);
-		jumptocentre[0][0] *= factor;
-		jumptocentre[1][0] *= factor;
+		*pdeltafieldline      = &deltafieldline.loc[0];
+		*(pdeltafieldline+1)  = &deltafieldline.loc[1];
+		jumptocentre          = multiply2x2(inverseTminusI, pdeltafieldline, 1);
+		jumptocentre[0][0]   *= factor;
+		jumptocentre[1][0]   *= factor;
 		//printstruct("deltafieldline", &deltafieldline);
 		//printmat("jumptocentre", jumptocentre, 2, 1);
 		//printstruct("fieldline_start", &fieldline_start);
@@ -61,7 +61,9 @@ struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct 
 		fieldline->loc[0] = fieldline_start.loc[0] - jumptocentre[0][0]; 
 		fieldline->loc[1] = fieldline_start.loc[1] - jumptocentre[1][0];
 		error = sqrt(pow(deltafieldline.loc[0], 2.0) + pow(deltafieldline.loc[1], 2.0)); 
-		free(jumptocentre);
+		//free(jumptocentre[0]);
+		//free(jumptocentre[1]);
+		//free(jumptocentre);
 		i = 1;
 	} while(error>errorlimit && ll==0);
 	//clock_t int3 = clock();
@@ -96,19 +98,19 @@ struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct 
 		for (i=0; i<N_line; i++)
 		{
 			centre[i] = *fieldline;
-			printf("where do I seg fault?\n");
+			//printf("where do I seg fault?\n");
 			if (i%N_gridphi_per_field_period==0)
 			{
 				printf("varphi = %f\n", varphi);
 				printstruct("fieldline\n", fieldline);
-				printf("where do I seg fault?\n");
+				//printf("where do I seg fault?\n");
 			}
 			//printstruct("fieldline[i]\n", fieldline);
 			RK4(fieldline, varphi, dvarphi, coils, n_coils, n_segs);
 			varphi += dvarphi;
-			printf("where do I seg fault?\n");
+			//printf("where do I seg fault?\n");
 		}
-		printf("where do I seg fault?\n");
+		//printf("where do I seg fault?\n");
 		deltafieldline = addstructs(1.0, fieldline, -1.0, &fieldline_start); 
 		//printf("fieldline->tangent[1][1] = %f\n", fieldline->tangent[1][0]);
 		inverseTminusI = invert2x2(deltafieldline.tangent, &det_tangent);
@@ -117,6 +119,7 @@ struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct 
 		printstruct("fieldline", fieldline);
 		printf("det(tangent)=%f\n", det_tangent);
 //		printf("tangent[0][0] address is %p\n", &&deltafieldline
+		printmat("inverseTminusI", inverseTminusI, 2, 2);
 		
 		pdeltafieldline = calloc(2,sizeof(double*)); 
 		//pTminusI = calloc(2,sizeof(double*)); 
@@ -257,6 +260,7 @@ double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_g
 					       ext_fieldline[main_index].long_tangent[centre_index], 
 					       ext_fieldline[main_index].eperp);	
 			sum_matrix_elements += fabs(matrix_element);
+			//sum_matrix_elements += fabs(matrix_element)/sin(ext_fieldline[main_index].angle*ext_fieldline[main_index].q0_index/L_field_periods); //This has the sin piece in the denominator, which can be safely set to unity
 			//circumference += sqrt(pow(ext_fieldline[(centre_index+1)%L_field_periods].loc[0] 
 			//		        - ext_fieldline[centre_index].loc[0], 2.0)
 			//	    	    + pow(ext_fieldline[(centre_index+1)%L_field_periods].loc[1] 
@@ -264,8 +268,52 @@ double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_g
 			//printf("circumference = %f\nmatrix_element = %f\n", circumference, matrix_element);
 			//printf("other circumference = %f\n", ext_fieldline[centre_index].circumference);
 		}
+		circumference = 2.0*M_PI*0.21;
 		wperp[main_index] = 2.0*L_field_periods*circumference/(M_PI*pol_mode*sum_matrix_elements);
 		printf("width = %f for index= %d\n", wperp[main_index], main_index);
 	}
 	return wperp;
+}
+
+struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
+	int i=0, q0, L_field_periods;
+	struct position fieldline_start, fieldline, gradfieldline, *gradfieldlineret;
+	double varphi=0.0, omega;
+	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
+	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0;
+	double circumference;
+	int N_line=0, main_ind, centre_ind, sec_ind;
+
+	//evecs1 = malloc(2*sizeof(double*));
+	//evecs1[0] = malloc(2*sizeof(double)); evecs1[1] = malloc(2*sizeof(double));
+	//evals1 = malloc(2*sizeof(double));
+
+	if (tor_mode % m0_symmetry == 0) 
+		L_field_periods = pol_mode;	
+	else 				   
+		L_field_periods = m0_symmetry*pol_mode;
+	N_line = L_field_periods*N_gridphi_per_field_period;
+	fieldline_start.loc[0] = RR; fieldline_start.loc[1] = ZZ;
+	fieldline = fieldline_start;
+	gradfieldline = fieldline_start;
+	gradfieldline.loc[0] = 0.0; gradfieldline.loc[1] = 0.0;
+	gradfieldline.tangent = set_identity();
+	varphi = 0.0;
+	printf("varphi = %f\n", varphi);
+	for (i=1; i<N_line+1; i++) {
+		RK4_wgrad(&fieldline, &gradfieldline, varphi, dvarphi, coils, n_coils, n_segs);
+		varphi += dvarphi;
+		//if (i%N_gridphi_per_field_period==0) {
+		//	centre_ind = (i / N_gridphi_per_field_period);
+		//	centre[centre_ind % L_field_periods] = fieldline;
+		//	printf("varphi = %f\n", varphi);
+		//	printstruct("fieldline[i]\n", &fieldline);
+		//	inverted = invert2x2(centre[(centre_ind-1) % L_field_periods].tangent, &detcentre);
+		//	printmat("inverted", inverted, 2, 2);
+		//	//ptarray[0] = &centre[centre_ind % L_field_periods].tangent[0][0];
+		//	//ptarray[1] = &centre[centre_ind % L_field_periods].tangent[1][0];
+		//}
+	}
+	gradfieldlineret = &gradfieldline;
+	return gradfieldlineret;
 }
