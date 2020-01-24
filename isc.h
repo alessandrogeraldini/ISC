@@ -105,8 +105,17 @@ struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct 
 struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
 /* evaluates all quantities necessary to calculate the island width */
 
+struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
+/* evaluates all quantities necessary to calculate the island width gradient */
+
 double *islandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates island width */
+
+double *gradislandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+/* evaluates island width gradient */
+
+struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
+/* evaluates gradient of O point position and tangent map */
 
 int fac(int number);
 /* factorial function */

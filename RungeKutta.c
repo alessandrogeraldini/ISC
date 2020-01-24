@@ -39,10 +39,10 @@ struct position *func(struct field *Bparg, struct position *Xparg)
 	return funcreturn;
 }
 
-struct position *dfunc(struct field *Bparg, struct field *dBparg, struct position *Xparg)
+struct position *dfunc(struct field *Bparg, struct field *dBparg, struct position *Xparg, struct position *dXparg)
 {
 	struct position *funcreturn=malloc(sizeof(struct position));
-	double *Jacobian[2], Dirac;
+	double *Jacobian[2], *dJacobian[2], Dirac;
 	double *p1tangent = &(Xparg->tangent[0][0]), **p2tangent = &p1tangent;
 	int row, col;
 	funcreturn->tangent = malloc(2*sizeof(double*));
@@ -50,6 +50,7 @@ struct position *dfunc(struct field *Bparg, struct field *dBparg, struct positio
 	for (row=0;row<2;row++)
 	{	
 		Jacobian[row] = malloc(2*sizeof(double));
+		dJacobian[row] = malloc(2*sizeof(double));
 		for (col=0;col<2;col++)
 		{
 			if (col==0)	Dirac=1.0;
@@ -57,16 +58,25 @@ struct position *dfunc(struct field *Bparg, struct field *dBparg, struct positio
 			Jacobian[row][col] = Dirac*Bparg->value[row]/Bparg->value[2] 
 			+ Xparg->loc[0]*Bparg->derivative[row][col]/Bparg->value[2] 
 			- Xparg->loc[0]*Bparg->value[row]*Bparg->derivative[2][col]/pow(Bparg->value[2], 2.0); 
+
+			dJacobian[row][col] = Xparg->loc[0] * dBparg->derivative[row][col]/ Bparg->value[2] 
+			+ ( Dirac - Xparg->loc[0] * dBparg->derivative[col][2] / Bparg->value[2] ) * dBparg->value[row] / Bparg->value[2] 
+			+ ( 2.0*Xparg->loc[0]*Bparg->value[row]*Bparg->derivative[2][col] / Bparg->value[2]  - Dirac*Bparg->value[row] - Xparg->loc[0]*Bparg->derivative[row][col] ) * dBparg->value[2] / pow(Bparg->value[2], 2.0) 
+			+ Xparg->loc[0] * Bparg->value[row] * dBparg->derivative[2][col] / pow(Bparg->value[2], 2.0);
 			//printf("Bparg->derivative[0][0] = %f\n", Bparg->derivative[0][0]);
 		}
 	}
 	//funcreturn->tangent = multiply2x2(Jacobian, p2tangent, 2);
 	for (row=0;row<2;row++)
 	{
-		funcreturn->loc[row] = Xparg->loc[0]*dBparg->value[row]/Bparg->value[2];
+		funcreturn->loc[row] = ( Xparg->loc[0]*dBparg->value[row] - Xparg->loc[0]*Bparg->value[row]*dBparg->value[2]/Bparg->value[2]  ) / Bparg->value[2]; // + Jacobian[row][col]*dXparg->loc[col]; 
 		for (col=0;col<2;col++)
 		{	
 			funcreturn->tangent[row][col] = Jacobian[row][0]*Xparg->tangent[0][col] + Jacobian[row][1]*Xparg->tangent[1][col];
+			// This piece is a test 
+			funcreturn->tangent[row][col] = ( Jacobian[row][0] + dJacobian[row][0] ) * Xparg->tangent[0][col] 
+			+ ( Jacobian[row][1] + dJacobian[row][1] ) * Xparg->tangent[1][col];
+			// End of test piece
 		}
 	}
 	return funcreturn;
@@ -177,33 +187,48 @@ void RK4_wgrad(struct position *Xp, struct position *Xpgrad, double varphi, doub
 	int i=0;
 	Xpold = *Xp;
 	Xpgradold = *Xpgrad;
+	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
+	//printf("Xp->loc[0] = %f\n", Xp->loc[0]);
+	//printf("Xp->loc[1] = %f\n", Xp->loc[1]);
+	//printf("Xp->tangent[0][0] = %f\n", Xp->tangent[0][0]);
+	//printf("Xp->tangent[0][1] = %f\n", Xp->tangent[0][1]);
+	//printf("Xp->tangent[1][0] = %f\n", Xp->tangent[1][0]);
+	//printf("Xp->tangent[1][1] = %f\n", Xp->tangent[1][1]);
+	//printf("Bpoint->value[0] = %f\n", Bpoint->value[0]);
+	//printf("Bpoint->value[1] = %f\n", Bpoint->value[1]);
+	//printf("Bpoint->value[2] = %f\n", Bpoint->value[2]);
+	//printf("Bpoint->derivative[0][0] = %f\n", Bpoint->derivative[0][0]);
+	//printf("Bpoint->derivative[1][0] = %f\n", Bpoint->derivative[1][0]);
+	//printf("Bpoint->derivative[2][0] = %f\n", Bpoint->derivative[2][0]);
+	//printf("Bpoint->derivative[0][1] = %f\n", Bpoint->derivative[0][1]);
+	//printf("Bpoint->derivative[1][1] = %f\n", Bpoint->derivative[1][1]);
+	//printf("Bpoint->derivative[2][1] = %f\n", Bpoint->derivative[2][1]);
 	Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	printf("YOOOO\n");
 	dXp1 = func(Bpoint, Xp);
-	dXpgrad1 = dfunc(Bpoint, Bpointgrad, Xp);
+	dXpgrad1 = dfunc(Bpoint, Bpointgrad, Xp, Xpgrad);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp1);
 	*Xpgrad = addstructs(1.0, &Xpgradold, 0.5*dvarphi, dXpgrad1);
-	printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	dXp2 = func(Bpoint, Xp);
-	dXpgrad2 = dfunc(Bpoint, Bpointgrad, Xp);
+	dXpgrad2 = dfunc(Bpoint, Bpointgrad, Xp, Xpgrad);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp2);
 	*Xpgrad = addstructs(1.0, &Xpgradold, 0.5*dvarphi, dXpgrad2);
-	printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	dXp3 = func(Bpoint, Xp);
-	dXpgrad3 = dfunc(Bpoint, Bpointgrad, Xp);
+	dXpgrad3 = dfunc(Bpoint, Bpointgrad, Xp, Xpgrad);
 	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp3);
 	*Xpgrad = addstructs(1.0, &Xpgradold, 0.5*dvarphi, dXpgrad3);
-	printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	dXp4 = func(Bpoint, Xp);
-	dXpgrad3 = dfunc(Bpoint, Bpointgrad, Xp);
+	dXpgrad4 = dfunc(Bpoint, Bpointgrad, Xp, Xpgrad);
 	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp1);
 	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp2);
 	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp3);
@@ -212,7 +237,7 @@ void RK4_wgrad(struct position *Xp, struct position *Xpgrad, double varphi, doub
 	*Xpgrad = addstructs(1.0, Xpgrad,     (1.0/3.0)*dvarphi, dXpgrad2);
 	*Xpgrad = addstructs(1.0, Xpgrad,     (1.0/3.0)*dvarphi, dXpgrad3);
 	*Xpgrad = addstructs(1.0, Xpgrad,     (1.0/6.0)*dvarphi, dXpgrad4);
-	printf("after 4th segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 4th segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//free(dXp1->tangent[0]); free(dXp1->tangent[1]); free(dXp1->tangent);
 	//free(dXp2->tangent[0]); free(dXp2->tangent[1]); free(dXp2->tangent);
 	//free(dXp3->tangent[0]); free(dXp3->tangent[1]); free(dXp3->tangent);
@@ -220,4 +245,5 @@ void RK4_wgrad(struct position *Xp, struct position *Xpgrad, double varphi, doub
 	//free(dXp1); free(dXp2); free(dXp3); free(dXp4);
 	//free(dXp1); free(dXp2); free(dXp3); free(dXp4);
 	return;
+
 }
