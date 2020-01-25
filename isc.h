@@ -67,6 +67,12 @@ double **multiply2x2(double **input2x2, double **input2xn, int dims);
 void multiply2x2reassign(double **input1, double **input2, int argument_number);
 /* mutliply 2x2 matrix input1 by 2x2 matrix input2 and assign the result to inputargument_number */
 
+double **add2x2(double c1, double **input2x2, double c2, double **input2xn, int dims);
+/* returns the 2xdims matrix product of 2x2 matrix input1 and 2xdims matrix input2 */
+
+void add2x2reassign(double c1, double **input1, double c2, double **input2, int argument_number);
+/* mutliply 2x2 matrix input1 by 2x2 matrix input2 and assign the result to inputargument_number */
+
 void linalg2x2(double **input, double **evecs, double *evals, double *determinant, double *trace);
 
 void **symmeigs(double **input, double *evec_largeeval, double *evec_smalleval);
@@ -74,6 +80,8 @@ void **symmeigs(double **input, double *evec_largeeval, double *evec_smalleval);
 double inner(double *left_vect, double **matrix, double *right_vect);
 
 double **set_identity();
+
+double **set_zeros();
 
 struct position addstructs(double num1, struct position *struct1, double num2, struct position *struct2);
 
@@ -111,7 +119,7 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 double *islandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates island width */
 
-double *gradislandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+double *gradislandwidth(struct ext_position *ext_fieldline, struct ext_position *grad_ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates island width gradient */
 
 struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);

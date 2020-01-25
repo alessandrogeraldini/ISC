@@ -198,7 +198,6 @@ struct field *gradBReim(int m0_symmetry, double iota0, double iota1, double *eps
 			mag[ind].value[1] = - ( (RR - R_axis) / RR ) * dcomboepsilon[ind] + dcombo1epsilon[ind] * ZZ / ( RR * pow(rmin, 2.0) ) ;
 			mag[ind].value[2] = 0.0;
 			d_dcombodR_epsilon[ind] = k_theta[ind] * pow( rmin, k_theta[ind] - 4 ) * ( k_theta[ind] * pow( rmin, 2.0 ) * sin( k_theta[ind]*theta - m0_symmetry*varphi ) * ( - ZZ / pow(rmin, 2.0) )  -  (k_theta[ind] - 2) *  (RR - R_axis) * cos(k_theta[ind]*theta - m0_symmetry * varphi) ) ;
-			//check_q = ( k_theta[ind] * pow( rmin, k_theta[ind] - 4 ) * epsilon[ind] * ( k_theta[ind] * pow( rmin, 2.0 ) * sin( k_theta[ind]*theta - m0_symmetry*varphi ) * ( - ZZ / pow(rmin, 2.0) ) - (k_theta[ind] - 2)  *  (RR - R_axis) * cos(k_theta[ind]*theta - m0_symmetry * varphi) ) );
 			d_dcombodZ_epsilon[ind] = pow( rmin, k_theta[ind] - 4 ) * k_theta[ind] * ( k_theta[ind] * pow(rmin, 2.0) * sin( k_theta[ind]*theta - m0_symmetry*varphi ) * ( ( RR - R_axis ) / pow(rmin, 2.0) ) -  (k_theta[ind] - 2) * ZZ * cos(k_theta[ind]*theta - m0_symmetry * varphi) );
 			d_dcombo1dR_epsilon[ind] = pow( k_theta[ind], 2.0 ) * pow(rmin, k_theta[ind] - 2) * ( pow(rmin, 2.0) * cos(k_theta[ind]*theta - m0_symmetry*varphi) * ( - ZZ / pow(rmin, 2.0) )  +  sin(k_theta[ind]*theta - m0_symmetry*varphi) * (RR - R_axis) ) ;
 			d_dcombo1dZ_epsilon[ind] = pow( k_theta[ind], 2.0 ) * pow(rmin, k_theta[ind] - 2) * ( pow(rmin, 2.0) * cos(k_theta[ind]*theta - m0_symmetry *varphi) * ( (RR - R_axis) / pow(rmin, 2.0) ) +  sin(k_theta[ind]*theta - m0_symmetry*varphi) * ZZ ) ;

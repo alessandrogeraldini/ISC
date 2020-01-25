@@ -336,13 +336,13 @@ struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi
 
 struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
 	int i=0, q0, L_field_periods;
-	struct position fieldline_start, fieldline, *centre;
+	struct position fieldline_start, fieldline, gradfieldline, *centre, *gradcentre;
 	double varphi=0.0, omega;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
-	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0;
+	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0, **spare_matrix;
 	double circumference;
 	int N_line=0, main_ind, centre_ind, sec_ind;
-	struct ext_position *ext_centre;
+	struct ext_position *ext_centre, *grad_ext_centre;
 
 	evecs1 = malloc(2*sizeof(double*));
 	evecs1[0] = malloc(2*sizeof(double)); evecs1[1] = malloc(2*sizeof(double));
@@ -354,20 +354,27 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 		L_field_periods = m0_symmetry*pol_mode;
 	N_line = L_field_periods*N_gridphi_per_field_period;
 	centre = malloc(L_field_periods*sizeof(struct position));
+	gradcentre = malloc(L_field_periods*sizeof(struct position));
 	ext_centre = malloc(L_field_periods*sizeof(struct ext_position));
+	grad_ext_centre = malloc(L_field_periods*sizeof(struct ext_position));
 	fieldline_start.loc[0] = RR; fieldline_start.loc[1] = ZZ;
 	fieldline_start.tangent = set_identity();
 	fieldline = fieldline_start;
+	gradfieldline.loc[0] = 0.0; gradfieldline.loc[1] = 0.0;
+	gradfieldline.tangent = set_zeros();
 	centre[0] = fieldline;
+	gradcentre[0] = gradfieldline;
 	varphi = 0.0;
 	printf("varphi = %f\n", varphi);
 	printstruct("fieldline[i]\n", &fieldline);
 	for (i=1; i<N_line+1; i++) {
-		RK4(&fieldline, varphi, dvarphi, coils, n_coils, n_segs);
+		//RK4(&fieldline, varphi, dvarphi, coils, n_coils, n_segs);
+		RK4_wgrad(&fieldline, &gradfieldline, varphi, dvarphi, coils, n_coils, n_segs);
 		varphi += dvarphi;
 		if (i%N_gridphi_per_field_period==0) {
 			centre_ind = (i / N_gridphi_per_field_period);
 			centre[centre_ind % L_field_periods] = fieldline;
+			gradcentre[centre_ind % L_field_periods] = gradfieldline;
 			printf("varphi = %f\n", varphi);
 			printstruct("fieldline[i]\n", &fieldline);
 			inverted = invert2x2(centre[(centre_ind-1) % L_field_periods].tangent, &detcentre);
@@ -377,9 +384,17 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 			ext_centre[centre_ind % L_field_periods].loc[0] = fieldline.loc[0];
 			ext_centre[centre_ind % L_field_periods].loc[1] = fieldline.loc[1];
 			ext_centre[centre_ind % L_field_periods].part_tangent = multiply2x2(centre[centre_ind % L_field_periods].tangent, inverted, 2);
-			printmat("ext_centre.part_tangent", ext_centre[centre_ind % L_field_periods].part_tangent, 2, 2);
+			//printmat("ext_centre.part_tangent", ext_centre[centre_ind % L_field_periods].part_tangent, 2, 2);
+			grad_ext_centre[centre_ind % L_field_periods].loc[0] = gradfieldline.loc[0];
+			grad_ext_centre[centre_ind % L_field_periods].loc[1] = gradfieldline.loc[1];
+			grad_ext_centre[centre_ind % L_field_periods].part_tangent = add2x2( 
+			1.0 , multiply2x2(gradcentre[centre_ind % L_field_periods].tangent, inverted, 2), 
+			-1.0, multiply2x2(ext_centre[centre_ind % L_field_periods].part_tangent, multiply2x2(gradcentre[(centre_ind-1) % L_field_periods].tangent, inverted, 2), 2), 2 );
+
+			//printmat("ext_centre.part_tangent", ext_centre[centre_ind % L_field_periods].part_tangent, 2, 2);
 		}
 	}
+	// The part below calculates the circumference and the full orbit tangent maps
 	circumference = 0.0;
 	for (centre_ind=0;centre_ind<L_field_periods;centre_ind++) {
 		circumference += sqrt(pow(ext_centre[(centre_ind+1)%L_field_periods].loc[0] 
@@ -388,8 +403,15 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 						- ext_centre[centre_ind].loc[1], 2.0));
 		ext_centre[centre_ind].epar = malloc(2*sizeof(double)); ext_centre[centre_ind].eperp = malloc(2*sizeof(double));
 		ext_centre[centre_ind].full_tangent = multiply2x2(ext_centre[(centre_ind +2)%L_field_periods].part_tangent, ext_centre[(centre_ind+1)%L_field_periods].part_tangent, 2);
+		grad_ext_centre[centre_ind].full_tangent = add2x2( 1.0, multiply2x2(grad_ext_centre[(centre_ind +2)%L_field_periods].part_tangent, ext_centre[(centre_ind+1)%L_field_periods].part_tangent, 2), 1.0, multiply2x2(ext_centre[(centre_ind +2)%L_field_periods].part_tangent, grad_ext_centre[(centre_ind+1)%L_field_periods].part_tangent, 2), 2);
+
 		for (sec_ind=3;sec_ind<L_field_periods+1;sec_ind++) {
 			multiply2x2reassign(ext_centre[(centre_ind + sec_ind)%L_field_periods].part_tangent, ext_centre[centre_ind].full_tangent, 2);
+			spare_matrix = multiply2x2(grad_ext_centre[(centre_ind + sec_ind)%L_field_periods].part_tangent, ext_centre[centre_ind].full_tangent, 2);
+			multiply2x2reassign(ext_centre[(centre_ind + sec_ind)%L_field_periods].part_tangent, grad_ext_centre[centre_ind].full_tangent, 2);
+			add2x2reassign(1.0, spare_matrix, 1.0, grad_ext_centre[centre_ind].full_tangent, 2);
+			free(spare_matrix[0]); free(spare_matrix[1]);
+			free(spare_matrix);
 		}
 		printmat("ext_centre.fulltangent", ext_centre[centre_ind].full_tangent, 2, 2);
 		symmeigs(ext_centre[centre_ind].full_tangent, ext_centre[centre_ind].eperp, ext_centre[centre_ind].epar);
@@ -407,6 +429,7 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 		printf("angle=%f\n", ext_centre[main_ind].angle);
 		printf("q0=%d\n", ext_centre[main_ind].q0_index);
 		ext_centre[main_ind].long_tangent = malloc(L_field_periods*sizeof(double));
+		grad_ext_centre[main_ind].long_tangent = malloc(L_field_periods*sizeof(double));
 		for (centre_ind=0;centre_ind<L_field_periods;centre_ind++) {
 			//ext_centre[centre_ind].long_tangent = set_identity();
 			//for (sec_ind=0; sec_ind<q0/L_field_periods; sec_ind++) {
@@ -416,34 +439,51 @@ struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int 
 			//	multiply2x2reassign(ext_centre[sec_ind+1].part_tangent, ext_centre[centre_ind].long_tangent, 2); 
 			//}
 			ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods] = set_identity();
+			grad_ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods] = set_zeros();
 			for (sec_ind=0; sec_ind<(q0+centre_ind)/L_field_periods; sec_ind++) {
 				multiply2x2reassign(ext_centre[main_ind].full_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2); 
+				spare_matrix = multiply2x2(grad_ext_centre[main_ind].full_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				multiply2x2reassign(ext_centre[main_ind].full_tangent, grad_ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				add2x2reassign(1.0, spare_matrix, 1.0, grad_ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				free(spare_matrix[0]); free(spare_matrix[1]);
+				free(spare_matrix);
 			}
 			for (sec_ind=0; sec_ind<(q0+centre_ind)%L_field_periods; sec_ind++) {
 				multiply2x2reassign(ext_centre[(sec_ind+1+main_ind)%L_field_periods].part_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2); 
+				spare_matrix = multiply2x2(grad_ext_centre[(sec_ind+1+main_ind)%L_field_periods].part_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				multiply2x2reassign(ext_centre[(sec_ind+1+main_ind)%L_field_periods].part_tangent, grad_ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				add2x2reassign(1.0, spare_matrix, 1.0, grad_ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_field_periods], 2);
+				free(spare_matrix[0]); free(spare_matrix[1]);
+				free(spare_matrix);
 			}
 		}
 	}
 	//ext_centre[centre_index % L_field_periods].part_tangent = multiply2x2(centre[centre_index % L_field_periods].tangent, inverted, 2);
 	//clock_t int3 = clock();
-	return ext_centre;
+	return grad_ext_centre;
 } 
 
-double *gradislandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+double *gradislandwidth(struct ext_position *ext_fieldline, struct ext_position *grad_ext_fieldline, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
 	int main_index, centre_index, L_field_periods;
-	double *wperp, sum_matrix_elements, matrix_element;
+	double *wperp, *gradwperp, sum_matrix_elements, grad_sum_matrix_elements, matrix_element, grad_matrix_element;
 	double circumference=ext_fieldline[0].circumference;
 	if (tor_mode % m0_symmetry == 0) L_field_periods = pol_mode;	
 	else 				   L_field_periods = m0_symmetry*pol_mode;
 	wperp = malloc(L_field_periods*sizeof(double));
+	gradwperp = malloc(L_field_periods*sizeof(double));
 	for (main_index=0;main_index<L_field_periods; main_index++) {
 		//circumference = 0.0;		
 		sum_matrix_elements = 0.0;		
+		grad_sum_matrix_elements = 0.0;		
 		for (centre_index=0;centre_index<L_field_periods; centre_index++) {
 			matrix_element = inner(ext_fieldline[centre_index].epar, 
 					       ext_fieldline[main_index].long_tangent[centre_index], 
 					       ext_fieldline[main_index].eperp);	
+			grad_matrix_element = inner(ext_fieldline[centre_index].epar, 
+					       grad_ext_fieldline[main_index].long_tangent[centre_index], 
+					       ext_fieldline[main_index].eperp)*matrix_element/fabs(matrix_element);	
 			sum_matrix_elements += fabs(matrix_element);
+			grad_sum_matrix_elements += grad_matrix_element;
 			//sum_matrix_elements += fabs(matrix_element)/sin(ext_fieldline[main_index].angle*ext_fieldline[main_index].q0_index/L_field_periods); //This has the sin piece in the denominator, which can be safely set to unity
 			//circumference += sqrt(pow(ext_fieldline[(centre_index+1)%L_field_periods].loc[0] 
 			//		        - ext_fieldline[centre_index].loc[0], 2.0)
@@ -455,7 +495,9 @@ double *gradislandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int
 		//circumference = 2.0*M_PI*0.2097;
 		printf("circumference = %f\n", circumference);
 		wperp[main_index] = 2.0*L_field_periods*circumference/(M_PI*pol_mode*sum_matrix_elements);
+		gradwperp[main_index] = - ( grad_sum_matrix_elements / sum_matrix_elements ) * wperp[main_index];
 		printf("width = %f for index= %d\n", wperp[main_index], main_index);
+		printf("gradwidth = %f for index= %d\n", gradwperp[main_index], main_index);
 	}
-	return wperp;
+	return gradwperp;
 }

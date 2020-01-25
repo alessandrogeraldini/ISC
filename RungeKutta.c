@@ -60,10 +60,10 @@ struct position *dfunc(struct field *Bparg, struct field *dBparg, struct positio
 			- Xparg->loc[0]*Bparg->value[row]*Bparg->derivative[2][col]/pow(Bparg->value[2], 2.0); 
 
 			dJacobian[row][col] = Xparg->loc[0] * dBparg->derivative[row][col]/ Bparg->value[2] 
-			+ ( Dirac - Xparg->loc[0] * dBparg->derivative[col][2] / Bparg->value[2] ) * dBparg->value[row] / Bparg->value[2] 
+			+ ( Dirac - Xparg->loc[0] * Bparg->derivative[2][col] / Bparg->value[2] ) * dBparg->value[row] / Bparg->value[2] 
 			+ ( 2.0*Xparg->loc[0]*Bparg->value[row]*Bparg->derivative[2][col] / Bparg->value[2]  - Dirac*Bparg->value[row] - Xparg->loc[0]*Bparg->derivative[row][col] ) * dBparg->value[2] / pow(Bparg->value[2], 2.0) 
-			+ Xparg->loc[0] * Bparg->value[row] * dBparg->derivative[2][col] / pow(Bparg->value[2], 2.0);
-			//printf("Bparg->derivative[0][0] = %f\n", Bparg->derivative[0][0]);
+			- Xparg->loc[0] * Bparg->value[row] * dBparg->derivative[2][col] / pow(Bparg->value[2], 2.0);
+
 		}
 	}
 	//funcreturn->tangent = multiply2x2(Jacobian, p2tangent, 2);
@@ -72,10 +72,11 @@ struct position *dfunc(struct field *Bparg, struct field *dBparg, struct positio
 		funcreturn->loc[row] = ( Xparg->loc[0]*dBparg->value[row] - Xparg->loc[0]*Bparg->value[row]*dBparg->value[2]/Bparg->value[2]  ) / Bparg->value[2]; // + Jacobian[row][col]*dXparg->loc[col]; 
 		for (col=0;col<2;col++)
 		{	
-			funcreturn->tangent[row][col] = Jacobian[row][0]*Xparg->tangent[0][col] + Jacobian[row][1]*Xparg->tangent[1][col];
+			funcreturn->tangent[row][col] = dJacobian[row][0]*Xparg->tangent[0][col] + dJacobian[row][1]*Xparg->tangent[1][col]
+			+ Jacobian[row][0]*dXparg->tangent[0][col] + Jacobian[row][1]*dXparg->tangent[1][col];
 			// This piece is a test 
-			funcreturn->tangent[row][col] = ( Jacobian[row][0] + dJacobian[row][0] ) * Xparg->tangent[0][col] 
-			+ ( Jacobian[row][1] + dJacobian[row][1] ) * Xparg->tangent[1][col];
+			//funcreturn->tangent[row][col] = ( Jacobian[row][0] + dJacobian[row][0] ) * Xparg->tangent[0][col] 
+			//+ ( Jacobian[row][1] + dJacobian[row][1] ) * Xparg->tangent[1][col];
 			// End of test piece
 		}
 	}

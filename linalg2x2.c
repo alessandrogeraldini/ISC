@@ -60,20 +60,30 @@ double **set_identity() {
 	return matrix_identity;
 }
 
+double **set_zeros() {
+	double **matrix_zeros;
+	matrix_zeros = calloc(2,sizeof(double));
+	matrix_zeros[0] = calloc(2,sizeof(double));
+	matrix_zeros[1] = calloc(2,sizeof(double));
+	//matrix_zeros[0][0] = 0.0; matrix_zeros[1][1] = 0.0;
+	//matrix_zeros[1][0] = 0.0; matrix_zeros[0][1] = 0.0;
+	return matrix_zeros;
+}
+
 double **invert2x2(double **input2x2, double* pdet_tangent) {
 	double **result=malloc(2*sizeof(double*));
 	int i=0;
 	for (i=0;i<2;i++) {
 		result[i] = malloc(2*sizeof(double));
 	}
-	printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
+	//printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
 	*pdet_tangent = input2x2[0][0]*input2x2[1][1] - input2x2[0][1]*input2x2[1][0];
 	result[0][0] =  input2x2[1][1]/(*pdet_tangent);
 	result[1][1] =  input2x2[0][0]/(*pdet_tangent);
 	result[0][1] = -input2x2[0][1]/(*pdet_tangent);
 	result[1][0] = -input2x2[1][0]/(*pdet_tangent);
-	printf("det =%f\n", *pdet_tangent);
-	printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
+	//printf("det =%f\n", *pdet_tangent);
+	//printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
 	return result;
 }
 
@@ -91,19 +101,19 @@ void printmat(char *name, double **input, int dimrows, int dimcols) {
 
 double **multiply2x2(double **input2x2, double **input2xdims, int dims) {
 	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
-	double **result=malloc(dims*sizeof(double*));
+	double **result; //=malloc(dims*sizeof(double*)); // this was wrong?
 	int i=0;
 	result = malloc(2*sizeof(double*));
 	for (i=0;i<2;i++) {
 		result[i] = malloc(dims*sizeof(double*));
 	}
-	printmat("input2x2", input2x2, 2, 2);
-	printmat("input2xdims", input2xdims, 2, dims);
+	//printmat("input2x2", input2x2, 2, 2);
+	//printmat("input2xdims", input2xdims, 2, dims);
 	for (i=0;i<dims;i++) {
 		result[0][i] = input2x2[0][0]*input2xdims[0][i] + input2x2[0][1]*input2xdims[1][i]; //input2xdims[1][i];
 		result[1][i] = input2x2[1][0]*input2xdims[0][i] + input2x2[1][1]*input2xdims[1][i]; //input2xdims[1][i];
 	}
-	printmat("result = input2x2*input2xdims", result, 2, dims);
+	//printmat("result = input2x2*input2xdims", result, 2, dims);
 	return result;
 }
 
@@ -116,6 +126,46 @@ void multiply2x2reassign(double **input1, double **input2, int argument_number) 
 	b = input1[0][0]*input2[0][1] + input1[0][1]*input2[1][1]; 
 	c = input1[1][0]*input2[0][0] + input1[1][1]*input2[1][0]; 
 	d = input1[1][0]*input2[0][1] + input1[1][1]*input2[1][1]; 
+	if (argument_number == 1) {
+		input1[0][0] = a;
+		input1[0][1] = b;
+		input1[1][0] = c;
+		input1[1][1] = d;
+	}
+	else {
+		input2[0][0] = a;
+		input2[0][1] = b;
+		input2[1][0] = c;
+		input2[1][1] = d;
+	}
+}
+
+double **add2x2(double c1, double **input2x2, double c2, double **input2xdims, int dims) {
+	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
+	double **result=malloc(dims*sizeof(double*));
+	int i=0;
+	for (i=0;i<dims;i++) {
+		result[i] = malloc(dims*sizeof(double*));
+	}
+	printmat("input2x2", input2x2, 2, 2);
+	printmat("input2xdims", input2xdims, 2, dims);
+	for (i=0;i<dims;i++) {
+		result[0][i] = c1*input2x2[0][i] + c2*input2xdims[0][i];
+		result[1][i] = c1*input2x2[1][i] + c2*input2xdims[1][i];
+	}
+	printmat("result = input2x2 + input2xdims", result, 2, dims);
+	return result;
+}
+
+void add2x2reassign(double c1, double **input1, double c2, double **input2, int argument_number) {
+	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
+	double a, b, c, d;
+	//printmat("input2x2", input2x2, 2, 2);
+	//printmat("input2xdims", input2xdims, 2, dims);
+	a = c1*input1[0][0] + c2*input2[0][0];
+	b = c1*input1[0][1] + c2*input2[0][1];
+	c = c1*input1[1][0] + c2*input2[1][0];
+	d = c1*input1[1][1] + c2*input2[1][1];
 	if (argument_number == 1) {
 		input1[0][0] = a;
 		input1[0][1] = b;

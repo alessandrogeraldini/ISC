@@ -1,3 +1,4 @@
+
 //Author: Alessandro Geraldini
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,8 +14,8 @@ int main()
 	int *n_coils=NULL, **n_segs=NULL, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode = 6, tor_mode = 1, index;
 	int make_Poincare_iota=2, find_axis = 2, find_islands=2, n_points=15; 
 	struct position *Xp=calloc(1,sizeof(struct position)), *axis, *island_centre, *Xpgrad;
-	struct ext_position *ext_centre;
-	double ***coils=NULL, *width;
+	struct ext_position *ext_centre, *grad_ext_centre;
+	double ***coils=NULL, *width, *gradwidth;
 	double r_interval = 0.1, *iota=NULL, *minor_radius=NULL;
 	double **evec=malloc(2*sizeof(double*)), *eval=malloc(2*sizeof(double)), trace, det, iota_axis;
 	evec[0]=malloc(2*sizeof(double)); evec[1]=malloc(2*sizeof(double));
@@ -90,6 +91,8 @@ int main()
 		island_centre = findisland(coils, n_coils, n_segs, Xp, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 		width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		grad_ext_centre = gradalongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
+		gradwidth = gradislandwidth(ext_centre, grad_ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		//Xpgrad = gradcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 	}
 
