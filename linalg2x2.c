@@ -67,6 +67,7 @@ double **set_zeros() {
 	matrix_zeros[1] = calloc(2,sizeof(double));
 	//matrix_zeros[0][0] = 0.0; matrix_zeros[1][1] = 0.0;
 	//matrix_zeros[1][0] = 0.0; matrix_zeros[0][1] = 0.0;
+	//printf("%f %f %f %f\n", matrix_zeros[0][0], matrix_zeros[0][1], matrix_zeros[1][0], matrix_zeros[1][1]);
 	return matrix_zeros;
 }
 
@@ -153,7 +154,7 @@ double **add2x2(double c1, double **input2x2, double c2, double **input2xdims, i
 		result[0][i] = c1*input2x2[0][i] + c2*input2xdims[0][i];
 		result[1][i] = c1*input2x2[1][i] + c2*input2xdims[1][i];
 	}
-	printmat("result = input2x2 + input2xdims", result, 2, dims);
+	printmat("sum =", result, 2, dims);
 	return result;
 }
 

@@ -116,6 +116,9 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
 /* evaluates all quantities necessary to calculate the island width gradient */
 
+struct ext_position *gradalongcentrealt(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
+/* evaluates all quantities necessary to calculate the island width gradient */
+
 double *islandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates island width */
 
