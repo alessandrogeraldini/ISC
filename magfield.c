@@ -107,18 +107,18 @@ struct field *BReim(int m0_symmetry, double iota0, double iota1, double *epsilon
 		theta = atan2(ZZ, RR - R_axis);
 		rmin = sqrt(pow((RR-R_axis), 2.0) + pow(ZZ, 2.0));
 		combo = iota0 + iota1*rmin*rmin;
+		combo1 = 0.0;
 		dcombodR = 2.0*iota1*(RR - R_axis);
 		dcombodZ = 2.0*iota1*ZZ;
-		combo1 = 0.0;
 		dcombo1dR = 0.0;
 		dcombo1dZ = 0.0;
+		//epsilon[0] += 0.00001; 
+		//this was a test to verify that the tangent map determines the width
+		// the small change of the position of the fixed point has no effect
 		for (ind=0; ind < size_epsilon; ind++) {
 			combo  -= k_theta[ind] * epsilon[ind] * pow(rmin, k_theta[ind] - 2) * cos(k_theta[ind]*theta - m0_symmetry*varphi);
 			combo1 += k_theta[ind] * epsilon[ind] * pow(rmin, k_theta[ind] - 2) * sin(k_theta[ind]*theta - m0_symmetry*varphi);
 		}
-		//epsilon[0] += 0.001; 
-		//this was a test to verify that the tangent map determines the width
-		// the small change of the position of the fixed point has no effect
 		for (ind=0; ind < size_epsilon; ind++) {
 			dcombodR -= k_theta[ind] * pow( rmin, k_theta[ind] - 4 ) * epsilon[ind] * ( k_theta[ind] * ZZ * sin( k_theta[ind]*theta - m0_symmetry*varphi )  +  (k_theta[ind] - 2) *  (RR - R_axis) * cos(k_theta[ind]*theta - m0_symmetry*varphi) ) ;
 			//check_q = ( k_theta[ind] * pow( rmin, k_theta[ind] - 4 ) * epsilon[ind] * ( k_theta[ind] * pow( rmin, 2.0 ) * sin( k_theta[ind]*theta - m0_symmetry*varphi ) * ( - ZZ / pow(rmin, 2.0) ) - (k_theta[ind] - 2)  *  (RR - R_axis) * cos(k_theta[ind]*theta - m0_symmetry * varphi) ) );
@@ -130,6 +130,7 @@ struct field *BReim(int m0_symmetry, double iota0, double iota1, double *epsilon
 		mag->value[1] = - ( (RR - R_axis) / RR ) * combo + ( ZZ / RR ) * combo1  ; 
 		mag->value[2] = -1.0;
 		mag->derivative[0][0] = ( - ZZ / pow( RR, 2.0) ) *  combo + (ZZ / RR) * dcombodR + combo1 * R_axis / pow(RR, 2.0) + dcombo1dR * (RR - R_axis) / RR;
+ //+ gradR*( (2.0*ZZ/pow(RR, 3.0))*combo0 - (2.0*ZZ/pow(RR, 2.0))*
 		mag->derivative[1][0] = ( - R_axis / pow( RR, 2.0) ) *  combo - ((RR - R_axis) / RR) * dcombodR - combo1 * ZZ / pow(RR, 2.0) + dcombo1dR * ZZ / RR;
 		mag->derivative[2][0] = 0.0;
 		mag->derivative[0][1] = ( 1.0 / RR ) * combo + (ZZ / RR) * dcombodZ + dcombo1dZ * (RR - R_axis) / RR;
@@ -173,6 +174,12 @@ struct field *gradBReim(int m0_symmetry, double iota0, double iota1, double *eps
 			mag[ind].derivative[0][1] = ( 1.0 / RR ) * dcomboepsilon[ind] + (ZZ / RR) * d_dcombodZ_epsilon[ind] + d_dcombo1dZ_epsilon[ind] * ( RR - R_axis ) / RR;
 			mag[ind].derivative[1][1] = - ((RR - R_axis) / RR) * d_dcombodZ_epsilon[ind] + dcombo1epsilon[ind] * ( 1.0 / RR ) + d_dcombo1dZ_epsilon[ind] * ZZ / RR;
 			mag[ind].derivative[2][1] = 0.0;
+	//		mag[ind].derivative[0][0] =  (ZZ / RR) * d_dcombodR_epsilon[ind] + dcombo1epsilon[ind] * R_axis / pow(RR, 2.0) + d_dcombo1dR_epsilon[ind] * (RR - R_axis) / RR ;
+	//		mag[ind].derivative[1][0] =  - ((RR - R_axis) / RR) * d_dcombodR_epsilon[ind] - dcombo1epsilon[ind] * ( ZZ / pow(RR, 2.0) ) + d_dcombo1dR_epsilon[ind] * ZZ / RR;
+	//		mag[ind].derivative[2][0] = 0.0;
+	//		mag[ind].derivative[0][1] = (ZZ / RR) * d_dcombodZ_epsilon[ind] + d_dcombo1dZ_epsilon[ind] * ( RR - R_axis ) / RR;
+	//		mag[ind].derivative[1][1] = - ((RR - R_axis) / RR) * d_dcombodZ_epsilon[ind]  + d_dcombo1dZ_epsilon[ind] * ZZ / RR;
+	//		mag[ind].derivative[2][1] = 0.0;
 		}
 		//mag[0].value[0] = (ZZ / RR) * dcomboiota; mag[0].value[1] = - ( (RR - R_axis) / RR ) * dcomboiota; mag[0].value[2] = 0.0;
 		//mag[0].value[0] = (ZZ / RR) * dcomboiota1; mag[0].value[1] = - ( (RR - R_axis) / RR ) * dcomboiota1; mag[0].value[2] = 0.0;
@@ -193,10 +200,10 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	double XpdR, YpdR, RpdRminrc, XpdRminxc, YpdRminyc, BXpdR, BYpdR, BZpdR, dR = 0.00001, dvarphi = 0.00001;
 	double RpdZminrc, ZpdZminzc, BXpdZ, BYpdZ, BZpdZ, dZ = 0.00001;
 	double amp_Domm[1], epsilon[1], iota[2]; 
-	int pol_Domm[1], tor_Domm[1], k_theta[2];
+	int pol_Domm[1], tor_Domm[1], k_theta[1];
 	char *type = "Reim";
-	//amp_Domm[0]=1.73; pol_Domm[0] = 2; tor_Domm[0] = 5;
-	amp_Domm[0]=2.0; pol_Domm[0] = 5; tor_Domm[0] = 5;
+	amp_Domm[0]=1.73; pol_Domm[0] = 2; tor_Domm[0] = 5;
+	//amp_Domm[0]=2.0; pol_Domm[0] = 5; tor_Domm[0] = 5;
 	//amp_Domm[0]=0.001; pol_Domm[0] = 4; tor_Domm[0] = 8;
 	//amp_Domm[0]=0.00000; pol_Domm[0] = 2; tor_Domm[0] = 5;
 	//printf("n_segs[1]=%d\n", n_segs[1]);
@@ -268,7 +275,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 		magfield->derivative[2][1] = dBvarphidZ;
 	}
 	else if (strncmp(type, "Reim", 4) == 0) {
-		epsilon[0] = 0.005; //epsilon[1] = 0.0;
+		epsilon[0] = 0.101; //epsilon[1] = 0.0;
 		//epsilon[0] = 0.0; epsilon[1] = 0.0;
 		k_theta[0] = 6; //k_theta[1] = 3;
 		//epsilon[0] = 0.00; epsilon[1] = 0.00;
@@ -303,9 +310,9 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 		//magfield->derivative[1][1] = dBZdZ; 
 		//magfield->derivative[2][1] = dBvarphidZ;
 		if (check == 1) {
-			magfielddR      = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 2, Xp[0]+dR, Xp[1], varphi);
-			magfielddZ      = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 2, Xp[0], Xp[1]+dZ, varphi);
-			magfielddvarphi = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 2, Xp[0], Xp[1], varphi + dvarphi);
+			magfielddR      = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0]+dR, Xp[1], varphi);
+			magfielddZ      = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1]+dZ, varphi);
+			magfielddvarphi = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi + dvarphi);
 			BX = 0.0; BY = 0.0; BZ = 0.0;
 			BXpdR = 0.0; BYpdR = 0.0; BZpdR = 0.0;
 			BXpdZ = 0.0; BYpdZ = 0.0; BZpdZ = 0.0;
@@ -434,12 +441,12 @@ struct field *gradBfield(double *Xp, double varphi, double ***coils, int *num_co
 	struct field *gradmagfield = calloc(1,sizeof(struct field));
 	int m0_symmetry = 1;
 	double epsilon[1], iota[2]; 
-	int k_theta[2];
-	epsilon[0] = 0.005; 
+	int k_theta[1];
+	epsilon[0] = 0.101; 
 	//epsilon[0] = 0.0; epsilon[1] = 0.0;
 	k_theta[0] = 6; 
 	//epsilon[0] = 0.00; epsilon[1] = 0.00;
-	iota[0] = 0.15; iota[1] = 0.38;
+	iota[0] = 0.151; iota[1] = 0.381;
 	gradmagfield = gradBReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
 	return gradmagfield;
 }

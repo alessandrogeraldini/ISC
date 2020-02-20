@@ -3,6 +3,7 @@
 struct field {
 	double value[3];
 	double derivative[3][2];
+	double twoderivatives[3][2][2];
 };
 /* contains the magnetic field value and its derivatives (assigned by Bfield function below) */
 
@@ -20,6 +21,7 @@ struct ext_position {
 	double angle;
 	double *epar;
 	double *eperp;
+	double *evals;
 	int q0_index;
 	double ***long_tangent;
 	double *eparkdotlong_tangentdoteperp0;
@@ -75,7 +77,7 @@ void add2x2reassign(double c1, double **input1, double c2, double **input2, int 
 
 void linalg2x2(double **input, double **evecs, double *evals, double *determinant, double *trace);
 
-void **symmeigs(double **input, double *evec_largeeval, double *evec_smalleval);
+void **symmeigs(double **input, double *evec_largeeval, double *evec_smalleval, double *evals);
 
 double inner(double *left_vect, double **matrix, double *right_vect);
 
@@ -103,12 +105,24 @@ void RK4_wgrad(struct position *Xp, struct position *Xpgrad, double varphi, doub
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line position and tangent map */
 
+void RK4_wadj(struct position *Xp, struct position *Xpgrad, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs);
+/* takes a Runge Kutta 4th order step (in toroidal angle) 
+   follows shape gradients of field line position and tangent map */
+
+void RK4_adjeval(double *number, struct position *centre, struct position *lambda_centre, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs);
+/* takes a Runge Kutta 4th order step (in toroidal angle) 
+   follows shape gradients of field line position and tangent map */
+
 struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int N_gridphi_toroidal);
 
 void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int *n_coils, int **n_segs);
 
 struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* finds the centre of an island from a nearby guess */
+
+struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, struct position *lambda, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+
+double *adjevaluate(double ***coils, int *n_coils, int **n_segs, struct position *centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 
 struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
 /* evaluates all quantities necessary to calculate the island width */
