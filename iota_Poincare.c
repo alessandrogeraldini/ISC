@@ -4,7 +4,7 @@
 #include <math.h>
 #include <time.h>
 #include "isc.h"
-#include <gsl/gsl_sf_bessel.h>
+#include <gsl/gsl_fit.h>
 
 void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int *n_coils, int **n_segs) {
 	/* declarations */

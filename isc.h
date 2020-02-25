@@ -25,6 +25,8 @@ struct ext_position {
 	int q0_index;
 	double ***long_tangent;
 	double *eparkdotlong_tangentdoteperp0;
+	double chord[2];
+	double chordplus[2];
 };
 /* contains position and several different tangent maps of a point along a magnetic field line 
    contains the eigenvector of the symmetrized full orbit tangent map (which are the island axes) 
@@ -120,11 +122,11 @@ void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, 
 struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* finds the centre of an island from a nearby guess */
 
-struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, struct position *lambda, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 
-double *adjevaluate(double ***coils, int *n_coils, int **n_segs, struct position *centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+double *adjeval(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 
-struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
+struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turns, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);
 /* evaluates all quantities necessary to calculate the island width */
 
 struct ext_position *gradalongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs);

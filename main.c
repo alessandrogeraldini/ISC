@@ -1,3 +1,4 @@
+
 //Author: Alessandro Geraldini
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,14 +10,14 @@
 int main()
 {
 	clock_t start = clock();
-	int N_gridphi_per_field_period=50, m0_symmetry=1, N_gridphi_tor=N_gridphi_per_field_period*m0_symmetry;
+	int N_gridphi_per_field_period=50, m0_symmetry=1, N_gridphi_tor=N_gridphi_per_field_period*m0_symmetry, num_turns=1;
 	int *n_coils=NULL, **n_segs=NULL, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode = 6, tor_mode = 1, index;
-	int make_Poincare_iota=2, find_axis = 2, find_islands=2, n_points=25; 
-	struct position *Xp=calloc(1,sizeof(struct position)), *lambda=calloc(1,sizeof(struct position)), *axis, *island_centre, *lambda_centre, *Xpgrad;
-	struct ext_position *ext_centre, *grad_ext_centre;
-	struct field *BB, *gradBB;
-	double ***coils=NULL, *width, *gradwidth, *number;
-	double r_interval = 0.1, *iota=NULL, *minor_radius=NULL;
+	int make_Poincare_iota=2, find_axis = 1, find_islands=2, n_points=25; 
+	struct position *Xp=calloc(1,sizeof(struct position)), *lambda=calloc(1,sizeof(struct position)), *axis, *island_centre, *lambda_centre;
+	struct ext_position *ext_centre; //, *grad_ext_centre;
+	//struct field *BB, *gradBB; for field checks
+	double ***coils=NULL, *width, *number;  //*gradwidth,
+	double r_interval = 0.1, *iota=NULL, *minor_radius=NULL, axis_phi0[2];
 	double **evec=malloc(2*sizeof(double*)), *eval=malloc(2*sizeof(double)), trace, det, iota_axis;
 	evec[0]=malloc(2*sizeof(double)); evec[1]=malloc(2*sizeof(double));
 	/* make arrays of coils */
@@ -32,8 +33,6 @@ int main()
 	/* find magnetic axis */
 	//Bpoint = Bfield(Xp->loc, varphi, coils, n_coils, n_segs);
 	//printf("B=(%f, %f, %f)\n", Bpoint->value[0], Bpoint->value[1], Bpoint->value[2]);
-	printf("Do you want to find the axis? (1=yes; 0=no) ");
-	scanf("%d", &find_axis);
 	printf("Do you want to produce a Poincare plot and an iota profile? (1=yes; 0=no) ");
 	scanf("%d", &make_Poincare_iota);
 	printf("Do you want to find magnetic islands? (1=yes; 0=no) ");
@@ -43,6 +42,7 @@ int main()
 		Xp->loc[0] = 1.1; Xp->loc[1]= 0.0;
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
 		axis = findcentre(coils, n_coils, n_segs, Xp, N_gridphi_tor);
+		axis_phi0[0] = axis[0].loc[0];  axis_phi0[1] = axis[0].loc[1];
 		linalg2x2(Xp->tangent, evec, eval, &det, &trace);
 		printf("evec=%f\n", evec[0][0]);
 		iota_axis = eval[1]/(2*M_PI);
@@ -95,20 +95,25 @@ int main()
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
 		lambda->tangent = set_identity();
 		island_centre = findisland(coils, n_coils, n_segs, Xp, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		lambda_centre = adjfindisland(coils, n_coils, n_segs, Xp, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		printstruct("Xp", Xp);
-		printstruct("lambda", lambda);
-		number = adjevaluate(coils, n_coils, n_segs, Xp, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
+		//printstruct("Xp", Xp);
+		//printstruct("lambda", lambda);
+		num_turns=1;
+		ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], axis_phi0, &num_turns, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
+		lambda_centre = adjfindisland(coils, n_coils, n_segs, ext_centre, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		number = adjeval(coils, n_coils, n_segs, ext_centre, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
 		printf("number = %f\n", *number);
+		//printf("YOOO\n");
+		width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 
-		//ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
-		//width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		//grad_ext_centre = gradalongcentrealt(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
+		/* I can eventually delete these lines, as the adjoint method seems to work
+		////grad_ext_centre = gradalongcentrealt(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 		////grad_ext_centre = gradalongcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
 
-		//gradwidth = gradislandwidth(ext_centre, grad_ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		//Xpgrad = gradcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
+		////gradwidth = gradislandwidth(ext_centre, grad_ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		////Xpgrad = gradcentre(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
+		*/
 
+		// field checks
 		//BB = Bfield(Xp->loc, 1.0, coils, n_coils, n_segs);  //printf("BR(R=%f,Z=%f)=%f\n", Xp->loc[0], Xp->loc[1], BB->value[0]); //clock_t int2 = clock(); //printf("Time after evaluating B field: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
 		//gradBB = gradBfield(Xp->loc, 1.0, coils, n_coils, n_segs);  //printf("BR(R=%f,Z=%f)=%f\n", Xp->loc[0], Xp->loc[1], BB->value[0]); //clock_t int2 = clock(); //printf("Time after evaluating B field: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
 		//printf("(%.10f, %.10f)\n", BB->value[0], BB->value[1]);

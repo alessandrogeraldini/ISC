@@ -6,6 +6,18 @@
 #include <gsl/gsl_sf_bessel.h>
 #include "isc.h"
 
+int rho(int fieldaligned_index, int n_turns, int L_field_periods) {
+	int reordered_index;
+	reordered_index = (n_turns*fieldaligned_index)%L_field_periods;
+	return reordered_index;
+	}
+
+int inverserho(int reordered_index, int n_turns, int L_field_periods) {
+	int fieldaligned_index;
+	fieldaligned_index = ( ( (reordered_index%n_turns)*L_field_periods + reordered_index ) / n_turns ) %L_field_periods;
+	return fieldaligned_index;
+}
+
 void printstruct(char *name, struct position *input) {
 	printf("structure position %s:\nposition = (%10.8f, %10.8f)\ntangent = |%10.8f %10.8f|\n          |%10.8f %10.8f|\n", 
 	 name, input->loc[0], input->loc[1], input->tangent[0][0], input->tangent[0][1], input->tangent[1][0], input->tangent[1][1]);
@@ -24,7 +36,7 @@ struct position *findcentre(double ***coils, int *n_coils, int **n_segs, struct 
 	//double **matrix;
 	double **pdeltafieldline, det_tangent;
 	double **inverseTminusI, **inverseT;
-	double error=1.0, errorlimit=0.00000001, factor=1.0;
+	double error=1.0, errorlimit=0.00000000001, factor=1.0;
 	int ll=1;
 	struct position *centre=malloc(N_gridphi_toroidal*sizeof(struct position));
 	do {
@@ -150,13 +162,19 @@ struct position *findisland(double ***coils, int *n_coils, int **n_segs, struct 
 	return centre;
 }
 
-struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
-	int i=0, q0, L_field_periods;
+int compfunc(const void *a,const void *b) {
+	int *x = (int *) a;
+	int *y = (int *) b;
+	return *x - *y;
+}
+
+struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turns, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
+	int i=0, q0, L_field_periods, clockwise=2, kminus, kplus, rhominus, rhoplus;
 	struct position fieldline_start, fieldline, *centre;
-	double varphi=0.0, omega;
+	double varphi=0.0, omega, *angle_axis;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
 	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0;
-	double circumference;
+	double circumference, ref_angle;
 	double *evals=malloc(2*sizeof(double));
 	int N_line=0, main_ind, centre_ind, sec_ind;
 	struct ext_position *ext_centre;
@@ -170,6 +188,7 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 	else 				   
 		L_field_periods = m0_symmetry*pol_mode;
 	N_line = L_field_periods*N_gridphi_per_field_period;
+	angle_axis = malloc(L_field_periods*sizeof(double));
 	centre = malloc(L_field_periods*sizeof(struct position));
 	ext_centre = malloc(L_field_periods*sizeof(struct ext_position));
 	fieldline_start.loc[0] = RR; fieldline_start.loc[1] = ZZ;
@@ -177,6 +196,8 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 	fieldline = fieldline_start;
 	centre[0] = fieldline;
 	varphi = 0.0;
+	ref_angle = atan2(fieldline.loc[1] - axis[1], fieldline.loc[0] - axis[0]);
+	angle_axis[0] = 0.0; 
 	printf("varphi = %f\n", varphi);
 	printstruct("fieldline[i]\n", &fieldline);
 	for (i=1; i<N_line+1; i++) {
@@ -187,6 +208,14 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 			centre[centre_ind % L_field_periods] = fieldline;
 			printf("varphi = %f\n", varphi);
 			printstruct("fieldline[i]\n", &fieldline);
+			angle_axis[centre_ind%L_field_periods] = atan2(fieldline.loc[1] - axis[1], fieldline.loc[0] - axis[0]) - ref_angle;
+			if (angle_axis[centre_ind%L_field_periods] < -M_PI) {
+				angle_axis[centre_ind%L_field_periods] += M_PI;	
+			}
+			else if (angle_axis[centre_ind%L_field_periods] > M_PI) {
+				angle_axis[centre_ind%L_field_periods] -= M_PI;	
+			}
+			angle_axis[centre_ind%L_field_periods] = atan2(fieldline.loc[1] - axis[1], fieldline.loc[0] - axis[0]) - ref_angle;
 			inverted = invert2x2(centre[(centre_ind-1) % L_field_periods].tangent, &detcentre);
 			printmat("inverted", inverted, 2, 2);
 			//ptarray[0] = &centre[centre_ind % L_field_periods].tangent[0][0];
@@ -197,8 +226,31 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 			printmat("ext_centre.part_tangent", ext_centre[centre_ind % L_field_periods].part_tangent, 2, 2);
 		}
 	}
+	if (angle_axis[1] > 0.0) {
+		if ( (angle_axis[2] > angle_axis[1]) || (angle_axis[2] < 0.0) ) {
+			clockwise = 0;
+		}
+		else {
+			clockwise = 1;
+		}
+	}
+	else {
+		if ( (angle_axis[2] < angle_axis[1]) || (angle_axis[2] > 0.0) ) {
+			clockwise = 1;
+		}
+		else {
+			clockwise = 0;
+		}
+	}
+	//inverted = invert2x2(centre[(centre_ind-1) % L_field_periods].tangent, &detcentre);
 	circumference = 0.0;
+	//rearr_index[0] = 0;
 	for (centre_ind=0;centre_ind<L_field_periods;centre_ind++) {
+		if (centre_ind != 0) {
+			if ( (clockwise == 0) && ( ( (angle_axis[centre_ind] > small) && (angle_axis[centre_ind-1] < - small) ) ) ) (*n_turns) +=1;	
+			else if ( (clockwise == 1) && ( ( (angle_axis[centre_ind] < -small) && (angle_axis[centre_ind-1] > small) ) ) ) (*n_turns) +=1;	
+		}
+		angle_axis[centre_ind] = atan2(ext_centre[(centre_ind+1)%L_field_periods].loc[1]-axis[1], ext_centre[(centre_ind+1)%L_field_periods].loc[0]-axis[0]);
 		circumference += sqrt(pow(ext_centre[(centre_ind+1)%L_field_periods].loc[0] 
 					        - ext_centre[centre_ind].loc[0], 2.0)
 				    	    + pow(ext_centre[(centre_ind+1)%L_field_periods].loc[1] 
@@ -212,9 +264,20 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 		symmeigs(ext_centre[centre_ind].full_tangent, ext_centre[centre_ind].eperp, ext_centre[centre_ind].epar, evals);
 		printf("eigenvectors are (%f, %f) and (%f, %f)\n", ext_centre[centre_ind].eperp[0], ext_centre[centre_ind].eperp[1], ext_centre[centre_ind].epar[0], ext_centre[centre_ind].epar[1]);
 	}
+	printf("\n\n n_turns = %d\n\n", *n_turns);
 	for (main_ind=0;main_ind<L_field_periods; main_ind++) {
 		linalg2x2(ext_centre[main_ind].full_tangent, evecs1, evals1, &det, &trace);
 		ext_centre[main_ind].circumference = circumference;
+		//rhominus = ( L_field_periods + (n_turns*main_ind)%L_field_periods - 1) %L_field_periods;
+		rhominus = ( L_field_periods + ((*n_turns)*main_ind)%L_field_periods - 1) %L_field_periods;
+		rhoplus =  ((*n_turns)*main_ind)%L_field_periods + 1;
+		//kminus = ( ( (rhominus%n_turns)*L_field_periods + rhominus ) / n_turns ) %L_field_periods;
+		kminus = inverserho(rhominus, (*n_turns), L_field_periods);
+		kplus = inverserho(rhoplus, (*n_turns), L_field_periods);
+		ext_centre[main_ind].chord[0] = ext_centre[main_ind].loc[0] - ext_centre[kminus].loc[0];
+		ext_centre[main_ind].chord[1] = ext_centre[main_ind].loc[1] - ext_centre[kminus].loc[1];
+		ext_centre[main_ind].chordplus[0] = ext_centre[kplus].loc[0] - ext_centre[main_ind].loc[0];
+		ext_centre[main_ind].chordplus[1] = ext_centre[kplus].loc[1] - ext_centre[main_ind].loc[1];
 		if ((fabs(evecs1[0][0]) < small) || (fabs(evecs1[0][1]) < small)) {
 			ext_centre[main_ind].angle = evals1[1];
 			omega = m0_symmetry*evals1[1]/(2.0*M_PI*L_field_periods); // I have changed it compared to Cary and Hanson's paper
@@ -249,16 +312,17 @@ struct ext_position *alongcentre(double RR, double ZZ, int m0_symmetry, int N_gr
 double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
 	int main_index, centre_index, L_field_periods;
 	double *wperp, sum_matrix_elements, matrix_element;
-	double circumference=ext_fieldline[0].circumference;
+	double circumference2=ext_fieldline[0].circumference, circumference;
 	printf("tor_mode=%d\n", tor_mode);
 	if (tor_mode % m0_symmetry == 0) L_field_periods = pol_mode;	
 	else 				   L_field_periods = m0_symmetry*pol_mode;
 	printf("L_field_periods=%d\n", L_field_periods);
 	wperp = malloc(L_field_periods*sizeof(double));
 	for (main_index=0;main_index<L_field_periods; main_index++) {
-		//circumference = 0.0;		
+		circumference = 0.0;		
 		sum_matrix_elements = 0.0;		
 		for (centre_index=0;centre_index<L_field_periods; centre_index++) {
+			circumference += pow( pow(ext_fieldline[centre_index].chord[0], 2.0) + pow(ext_fieldline[centre_index].chord[1], 2.0) , 0.5 );
 			matrix_element = inner(ext_fieldline[centre_index].epar, 
 					       ext_fieldline[main_index].long_tangent[centre_index], 
 					       ext_fieldline[main_index].eperp);	
@@ -274,24 +338,25 @@ double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_g
 		//circumference = 2.0*M_PI*0.2102;
 		//circumference = 2.0*M_PI*0.2094;
 		printf("circumference = %f\n", circumference);
+		printf("circumference_oldway = %f\n", circumference2);
 		wperp[main_index] = 2.0*L_field_periods*circumference/(M_PI*pol_mode*sum_matrix_elements);
 		printf("width = %f for index= %d\n", wperp[main_index], main_index);
 	}
 	return wperp;
 }
 
-struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, struct position *fieldline, struct position *lambda, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
 	// declarations
 	//clock_t start = clock();
-	int i=0;
-	struct position lambda_start, deltalambda, fieldline_start;
+	int i=0, centre_ind;
+	struct position lambda_start, deltalambda, fieldline_start, fieldline;
 	double varphi=0.0, **jumptocentre=calloc(1,sizeof(double*)); //, **testunity;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
 	double **matrix;
 	double **pdeltalambda, det_tangent;
 	double **inverseTminusI, **inverseT;
 	double error = 1.0, errorlimit = 0.000000000001;
-	double factor = 1.0;
+	double factor = 1.0, chordlength, chordpluslength;
 	int N_line=0, L_field_periods;
 	struct position *centrelambda=malloc(N_line*sizeof(struct position));
 	if (tor_mode % m0_symmetry == 0) 
@@ -301,23 +366,29 @@ struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, stru
 	N_line = L_field_periods*N_gridphi_per_field_period;
 	printf("N_line = %d\n", N_line);
 	printf("field_periods = %d\n", m0_symmetry);
-	fieldline_start = *fieldline;
+	fieldline_start.loc[0] = ext_centre[0].loc[0]; fieldline_start.loc[1] = ext_centre[0].loc[1];
+	fieldline.tangent = set_identity();
 	do {
-		fieldline->loc[0] = fieldline_start.loc[0];
-		fieldline->loc[1] = fieldline_start.loc[1];
+		fieldline.loc[0] = fieldline_start.loc[0];
+		fieldline.loc[1] = fieldline_start.loc[1];
 		lambda_start = *lambda;
 		varphi = 0.0;
-		printf("RR=%f\n", fieldline->loc[0]);
+		printf("RR=%f\n", fieldline.loc[0]);
 		for (i=0; i<N_line; i++)
 		{
 			centrelambda[i] = *lambda;
 			if (i%N_gridphi_per_field_period==0)
 			{
+				centre_ind = i/N_gridphi_per_field_period;
 				printf("varphi = %f\n", varphi);
 				//printstruct("lambda\n", lambda);
-				if (i/N_gridphi_per_field_period==0) lambda->loc[0] += 1.0;
+				//if (centre_ind==0) lambda->loc[0] += 1.0;
+				chordlength= pow( pow(ext_centre[centre_ind].chord[0], 2.0) + pow(ext_centre[centre_ind].chord[1], 2.0), 0.5);
+				chordpluslength= pow( pow(ext_centre[centre_ind].chordplus[0], 2.0) + pow(ext_centre[centre_ind].chordplus[1], 2.0), 0.5);
+				lambda->loc[0] += (ext_centre[centre_ind].chord[0]/chordlength - ext_centre[centre_ind].chordplus[0]/chordpluslength);
+				lambda->loc[1] += (ext_centre[centre_ind].chord[1]/chordlength - ext_centre[centre_ind].chordplus[1]/chordpluslength);
 			}
-			RK4_wadj(fieldline, lambda, varphi, dvarphi, coils, n_coils, n_segs);
+			RK4_wadj(&fieldline, lambda, varphi, dvarphi, coils, n_coils, n_segs);
 			varphi += dvarphi;
 		}
 		deltalambda = addstructs(1.0, lambda, -1.0, &lambda_start); 
@@ -354,11 +425,12 @@ struct position *adjfindisland(double ***coils, int *n_coils, int **n_segs, stru
 	return centrelambda;
 }
 
-double *adjevaluate(double ***coils, int *n_coils, int **n_segs, struct position *centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+double *adjeval(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
 	// declarations
 	//clock_t start = clock();
-	int i=0;
-	double varphi=0.0;
+	int i=0, centre_ind;
+	struct position centre;
+	double varphi=0.0, chordlength, chordpluslength;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
 	double *number, initial=0.0;
 	int N_line=0, L_field_periods;
@@ -367,6 +439,10 @@ double *adjevaluate(double ***coils, int *n_coils, int **n_segs, struct position
 	else 				 
 		L_field_periods = m0_symmetry*pol_mode;
 
+	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
+	//lambda_centre.loc[0] = lambda[0]; lambda_centre.loc[1] = lambda[1];
+	centre.tangent = set_identity();
+	//lambda_centre.tangent = set_identity();
 	number = &initial;
 	N_line = L_field_periods*N_gridphi_per_field_period;
 	printf("N_line = %d\n", N_line);
@@ -376,19 +452,26 @@ double *adjevaluate(double ***coils, int *n_coils, int **n_segs, struct position
 	{
 		if (i%N_gridphi_per_field_period==0)
 		{
+			centre_ind = i/N_gridphi_per_field_period;
 			printf("varphi = %f\n", varphi);
 			printstruct("lambda",lambda_centre);
-			printstruct("Xp",centre);
+			printstruct("Xp",&centre);
 			printf("number = %f\n", *number);
-			if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
+			//if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
+			//printstruct("lambda\n", lambda);
+			//if (centre_ind==0) lambda->loc[0] += 1.0;
+			chordlength= pow( pow(ext_centre[centre_ind].chord[0], 2.0) + pow(ext_centre[centre_ind].chord[1], 2.0), 0.5);
+			chordpluslength= pow( pow(ext_centre[centre_ind].chordplus[0], 2.0) + pow(ext_centre[centre_ind].chordplus[1], 2.0), 0.5);
+			lambda_centre->loc[0] += (ext_centre[centre_ind].chord[0]/chordlength - ext_centre[centre_ind].chordplus[0]/chordpluslength);
+			lambda_centre->loc[1] += (ext_centre[centre_ind].chord[1]/chordlength - ext_centre[centre_ind].chordplus[1]/chordpluslength);
 		}
-		RK4_adjeval(number, centre, lambda_centre, varphi, dvarphi, coils, n_coils, n_segs);
+		RK4_adjeval(number, &centre, lambda_centre, varphi, dvarphi, coils, n_coils, n_segs);
 		varphi += dvarphi;
 		//printf("number = %f\n", *number);
 	}
 	printf("varphi = %f\n", varphi);
 	printstruct("lambda",lambda_centre);
-	printstruct("Xp",centre);
+	printstruct("Xp",&centre);
 	printf("number = %f\n", *number);
 	return number;
 }
@@ -608,13 +691,12 @@ struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi
 struct ext_position *gradalongcentrealt(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
 	int i=0, q0, L_field_periods;
 	struct position fieldline_start, fieldline, gradfieldline, *centre, *gradcentre;
-	double evals[2], **gradsigmaM, **gradsymm, **sigma;
+	double evals[2], **sigma; //**gradsymm, **gradsigmaM, 
 	double varphi=0.0, omega, actualdet, graddet;
-	double deltaepar, deltaeperp;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
-	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0, **spare_matrix;
+	double **inverted, detcentre, **evecs1, *evals1, det=0, trace=0; // **spare_matrix;
 	double circumference;
-	int N_line=0, main_ind, centre_ind, sec_ind;
+	int N_line=0, main_ind, centre_ind;
 	struct ext_position *ext_centre, *grad_ext_centre;
 
 	evecs1 = malloc(2*sizeof(double*));

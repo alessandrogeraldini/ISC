@@ -1,3 +1,4 @@
+// Author: Alessandro Geraldini
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <math.h>
@@ -181,8 +182,8 @@ void add2x2reassign(double c1, double **input1, double c2, double **input2, int 
 	}
 }
 
-void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval) {
-	double *evals=malloc(2*sizeof(double)), **evecs=malloc(2*sizeof(double*)), **symm=malloc(2*sizeof(double*));
+void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval, double *evals) {
+	double **evecs=malloc(2*sizeof(double*)), **symm=malloc(2*sizeof(double*));
 	double det, tr;
 	evecs[0] = malloc(2*sizeof(double)); evecs[1] = malloc(2*sizeof(double));
 	symm[0] = malloc(2*sizeof(double)); symm[1] = malloc(2*sizeof(double));
@@ -198,14 +199,39 @@ void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval) {
 		evec_smalleval[0] = evecs[0][1]; evec_smalleval[1] = evecs[1][1];	
 		evec_largeeval[0] = evecs[0][0]; evec_largeeval[1] = evecs[1][0];	
 	}
-	//free(symm[0]);
-	//free(symm[1]);
-	//free(evecs[0]);
-	//free(evecs[1]);
-	//free(symm);
-	//free(evecs);
-	//free(evals);
+	free(symm[0]);
+	free(symm[1]);
+	free(evecs[0]);
+	free(evecs[1]);
+	free(symm);
+	free(evecs);
 }
+
+//void gradsymmeigs(double **input, double **gradinput, double *evec_largeeval, double *evec_smalleval, double *gradevec_largeeval, double *gradevec_smalleval) {
+//	double *evals=malloc(2*sizeof(double)), **evecs=malloc(2*sizeof(double*)), **symm=malloc(2*sizeof(double*));
+//	double det, tr;
+//	evecs[0] = malloc(2*sizeof(double)); evecs[1] = malloc(2*sizeof(double));
+//	symm[0] = malloc(2*sizeof(double)); symm[1] = malloc(2*sizeof(double));
+//	symm[0][0] = input[1][0];                     symm[1][1] = -input[0][1];
+//	symm[0][1] = 0.5*(input[1][1] - input[0][0]); symm[1][0] = symm[0][1];
+//	linalg2x2(symm, evecs, evals, &det, &tr);
+//	//printmat("result = input2x2*input2xdims", result, 2, dims);
+//	if (evals[0] < evals[1]) {
+//		evec_largeeval[0] = evecs[0][1]; evec_largeeval[1] = evecs[1][1];	
+//		evec_smalleval[0] = evecs[0][0]; evec_smalleval[1] = evecs[1][0];	
+//	}
+//	else {
+//		evec_smalleval[0] = evecs[0][1]; evec_smalleval[1] = evecs[1][1];	
+//		evec_largeeval[0] = evecs[0][0]; evec_largeeval[1] = evecs[1][0];	
+//	}
+//	//free(symm[0]);
+//	//free(symm[1]);
+//	//free(evecs[0]);
+//	//free(evecs[1]);
+//	//free(symm);
+//	//free(evecs);
+//	//free(evals);
+//}
 
 double inner(double *left_vect, double **matrix, double *right_vect) {
 	double answer;

@@ -1,3 +1,4 @@
+
 //Author: Alessandro Geraldini
 #include <stdio.h>
 #include <stdlib.h>
@@ -519,15 +520,24 @@ struct field *DommBfield(int N_modes, double *amp, int *tor_mode, int *pol_mode,
 	struct field *magfield=malloc(sizeof(struct field));
 	int ind;
 	//printf("YOLOO\n");
-	magfield->value[0] = BRloop(R, Z);
-	magfield->value[1] = BZloop(R, Z);
-	magfield->value[2] = mu0*IZ/(2.0*M_PI*R);
-	magfield->derivative[0][0] = dRBRloop(R, Z);
-	magfield->derivative[1][0] = dRBZloop(R, Z);
-	magfield->derivative[2][0] = -mu0*IZ/(2.0*M_PI*R*R);
-	magfield->derivative[0][1] = dZBRloop(R, Z);
-	magfield->derivative[1][1] = dZBZloop(R, Z);
+	magfield->value[0] = 0.0;
+	magfield->value[1] = 0.0;
+	magfield->value[2] = 1.0/R;
+	magfield->derivative[0][0] = 0.0;
+	magfield->derivative[1][0] = 0.0;
+	magfield->derivative[2][0] = -1.0/(R*R);
+	magfield->derivative[0][1] = 0.0;
+	magfield->derivative[1][1] = 0.0;
 	magfield->derivative[2][1] = 0.0;
+	//magfield->value[0] = BRloop(R, Z);
+	//magfield->value[1] = BZloop(R, Z);
+	//magfield->value[2] = mu0*IZ/(2.0*M_PI*R);
+	//magfield->derivative[0][0] = dRBRloop(R, Z);
+	//magfield->derivative[1][0] = dRBZloop(R, Z);
+	//magfield->derivative[2][0] = -mu0*IZ/(2.0*M_PI*R*R);
+	//magfield->derivative[0][1] = dZBRloop(R, Z);
+	//magfield->derivative[1][1] = dZBZloop(R, Z);
+	//magfield->derivative[2][1] = 0.0;
 	for (ind=0; ind<N_modes; ind++) {
 		//printf("ind=%d\n", ind);
 		magfield->value[0] += amp[ind]*BR(tor_mode[ind], pol_mode[ind], R, Z, phi);
