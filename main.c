@@ -1,4 +1,4 @@
-
+//Currently under construction
 //Author: Alessandro Geraldini
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,10 +13,10 @@ int main()
 	int N_gridphi_per_field_period=50, m0_symmetry=1, N_gridphi_tor=N_gridphi_per_field_period*m0_symmetry, num_turns=1;
 	int *n_coils=NULL, **n_segs=NULL, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode = 6, tor_mode = 1, index;
 	int make_Poincare_iota=2, find_axis = 1, find_islands=2, n_points=25; 
-	struct position *Xp=calloc(1,sizeof(struct position)), *lambda=calloc(1,sizeof(struct position)), *axis, *island_centre, *lambda_centre;
+	struct position *Xp=calloc(1,sizeof(struct position)), *axis, *island_centre, **mu, **lambdaQ, lambda;
 	struct ext_position *ext_centre; //, *grad_ext_centre;
 	//struct field *BB, *gradBB; for field checks
-	double ***coils=NULL, *width, *number;  //*gradwidth,
+	double ***coils=NULL, *width, *number, *gradtangent;  //*gradwidth,
 	double r_interval = 0.1, *iota=NULL, *minor_radius=NULL, axis_phi0[2];
 	double **evec=malloc(2*sizeof(double*)), *eval=malloc(2*sizeof(double)), trace, det, iota_axis;
 	evec[0]=malloc(2*sizeof(double)); evec[1]=malloc(2*sizeof(double));
@@ -89,21 +89,26 @@ int main()
 
 		Xp->loc[0] = 1.21; Xp->loc[1]= 0.0; 
 		Xp->loc[0] = 1.21016105; Xp->loc[1]= 0.0; 
-		lambda->loc[0] = 1.0; lambda->loc[1]= 1.0; 
+		//lambda->loc[0] = 1.0; lambda->loc[1]= 1.0; 
 		//Xp->loc[0] = 1.0; Xp->loc[1]= 0.21; 
 		//Xp->loc[0] = 0.945; Xp->loc[1]= 0.0; // Dommaschk (5,2) amp 1.73: island is at(1.299008, -0.515194)
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
-		lambda->tangent = set_identity();
+		//lambda->tangent = set_identity();
 		island_centre = findisland(coils, n_coils, n_segs, Xp, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		//printstruct("Xp", Xp);
 		//printstruct("lambda", lambda);
 		num_turns=1;
 		ext_centre = alongcentre(island_centre[0].loc[0], island_centre[0].loc[1], axis_phi0, &num_turns, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);
-		lambda_centre = adjfindisland(coils, n_coils, n_segs, ext_centre, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		number = adjeval(coils, n_coils, n_segs, ext_centre, lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
-		printf("number = %f\n", *number);
-		//printf("YOOO\n");
+		lambda = findadjsimple(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		//mu = findadjmu(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		//lambdaQ = findadjtangent(coils, n_coils, n_segs, ext_centre, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		number = adjgrad(coils, n_coils, n_segs, ext_centre, &lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
+		// BELOW UNDER CONSTRUCTION 
+		mu = findadjmu(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		lambdaQ = findadjtangent(coils, n_coils, n_segs, ext_centre, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		gradtangent = adjgradtangent(coils, n_coils, n_segs, ext_centre, lambdaQ, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
+		// ABOVE UNDER CONSTRUCTION 
 
 		/* I can eventually delete these lines, as the adjoint method seems to work
 		////grad_ext_centre = gradalongcentrealt(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);

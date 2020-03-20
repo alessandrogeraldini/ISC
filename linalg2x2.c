@@ -142,6 +142,18 @@ void multiply2x2reassign(double **input1, double **input2, int argument_number) 
 	}
 }
 
+double *multiply(double **input1, double *input2) {
+	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
+	double a, b, *result=malloc(2*sizeof(double));
+	//printmat("input2x2", input2x2, 2, 2);
+	//printmat("input2xdims", input2xdims, 2, dims);
+	a = input1[0][0]*input2[0] + input1[0][1]*input2[1]; 
+	b = input1[1][0]*input2[0] + input1[1][1]*input2[1]; 
+	result[0] = a;
+	result[1] = b;
+	return result;
+}
+
 double **add2x2(double c1, double **input2x2, double c2, double **input2xdims, int dims) {
 	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
 	double **result=malloc(dims*sizeof(double*));
@@ -184,7 +196,7 @@ void add2x2reassign(double c1, double **input1, double c2, double **input2, int 
 
 void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval, double *evals) {
 	double **evecs=malloc(2*sizeof(double*)), **symm=malloc(2*sizeof(double*));
-	double det, tr;
+	double det, tr, crossprod;
 	evecs[0] = malloc(2*sizeof(double)); evecs[1] = malloc(2*sizeof(double));
 	symm[0] = malloc(2*sizeof(double)); symm[1] = malloc(2*sizeof(double));
 	symm[0][0] = input[1][0];                     symm[1][1] = -input[0][1];
@@ -199,12 +211,18 @@ void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval, do
 		evec_smalleval[0] = evecs[0][1]; evec_smalleval[1] = evecs[1][1];	
 		evec_largeeval[0] = evecs[0][0]; evec_largeeval[1] = evecs[1][0];	
 	}
+	crossprod = evec_largeeval[0]*evec_smalleval[1] - evec_largeeval[1]*evec_smalleval[0];
+	if (crossprod < 0.0) {
+		printf("\n\n\n\n\n\n\n\nYOLO\n\n\n\n\n\n\n");
+		evec_smalleval[0] *= (-1);
+		evec_smalleval[1] *= (-1);
+	}
 	free(symm[0]);
 	free(symm[1]);
-	free(evecs[0]);
-	free(evecs[1]);
+	//free(evecs[0]);
+	//free(evecs[1]);
 	free(symm);
-	free(evecs);
+	//free(evecs);
 }
 
 //void gradsymmeigs(double **input, double **gradinput, double *evec_largeeval, double *evec_smalleval, double *gradevec_largeeval, double *gradevec_smalleval) {
