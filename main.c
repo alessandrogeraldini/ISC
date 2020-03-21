@@ -102,13 +102,14 @@ int main()
 		lambda = findadjsimple(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		//mu = findadjmu(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		//lambdaQ = findadjtangent(coils, n_coils, n_segs, ext_centre, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		number = adjgrad(coils, n_coils, n_segs, ext_centre, &lambda, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
-		// BELOW UNDER CONSTRUCTION 
+		//width = islandwidth(ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		mu = findadjmu(coils, n_coils, n_segs, ext_centre, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
 		lambdaQ = findadjtangent(coils, n_coils, n_segs, ext_centre, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
-		gradtangent = adjgradtangent(coils, n_coils, n_segs, ext_centre, lambdaQ, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
-		// ABOVE UNDER CONSTRUCTION 
+		//number = adjgrad(coils, n_coils, n_segs, ext_centre, &lambda, lambdaQ, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
+		// The module called below will contain everything: island width and island width adjoint gradient
+		width = islandwidthnew(coils, n_coils, n_segs, ext_centre, &lambda, lambdaQ, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode);
+		// The module called above will contain everything: island width and island width adjoint gradient
+		//gradtangent = adjgradtangent(coils, n_coils, n_segs, ext_centre, lambdaQ, mu, m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode) ;
 
 		/* I can eventually delete these lines, as the adjoint method seems to work
 		////grad_ext_centre = gradalongcentrealt(island_centre[0].loc[0], island_centre[0].loc[1], m0_symmetry, N_gridphi_per_field_period, tor_mode, pol_mode, coils, n_coils, n_segs);

@@ -120,14 +120,18 @@ struct position *forward_adjtangent(struct field *Bp, struct position *Xp, struc
 			object[col][row] = 0.0;
 			for (third=0;third<2;third++) {
 				//object[col][row] +=  Hessian[third][col][row]*mu->loc[third];			
+				// I suspect the remaining error is in expression below containing the Hessian
 				object[col][row] 
 				+= ( Rhat[col]*(Bp->derivative[third][row]/Bp->value[2] - Rhat[col]*Bp->value[third]*Bp->derivative[2][row]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*(Bp->twoderivative[third][col][row]/(2.0*Bp->value[2]) - Bp->value[third]*Bp->twoderivative[2][row][col]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[third]*Bp->derivative[2][col]*Bp->derivative[2][row]/pow(Bp->value[2], 3.0) - Bp->derivative[third][col]*Bp->derivative[2][row]/pow(Bp->value[2], 2.0) )
 			 	+    Rhat[row]*(Bp->derivative[third][col]/Bp->value[2] - Rhat[row]*Bp->value[third]*Bp->derivative[2][col]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*(Bp->twoderivative[third][row][col]/(2.0*Bp->value[2]) - Bp->value[third]*Bp->twoderivative[2][col][row]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[third]*Bp->derivative[2][row]*Bp->derivative[2][col]/pow(Bp->value[2], 3.0) - Bp->derivative[third][row]*Bp->derivative[2][col]/pow(Bp->value[2], 2.0) ) ) * mu->loc[third];
+				// I suspect the remaining error is in expression above containing the Hessian
 			}
 			adjfuncreturn->loc[row] -=  ( ( lambdaQ->loc[col] / Bp->value[2] ) * ( Rhat[row]*Bp->value[col] + Xp->loc[0] * ( Bp->derivative[col][row] - Bp->derivative[2][row]*Bp->value[col]/Bp->value[2] ) ) - object[col][row]*sperp->loc[col] );
+			// problem here
 			adjfuncreturn->tangent[row][col] = - ( Rhat[row]*Bp->value[0]*lambdaQ->tangent[0][col]/Bp->value[2] + Rhat[row]*Bp->value[1]*lambdaQ->tangent[1][col]/Bp->value[2] 
 			+ (Xp->loc[0]/Bp->value[2]) * (Bp->derivative[0][row]*lambdaQ->tangent[0][col] + Bp->derivative[1][row]*lambdaQ->tangent[1][col] 
 			 - Bp->derivative[2][row]*Bp->value[0]*lambdaQ->tangent[0][col]/Bp->value[2] - Bp->derivative[2][row]*Bp->value[1]*lambdaQ->tangent[1][col]/Bp->value[2] ) ) ;
+			// problem here
 		}
 	}
 	return adjfuncreturn;
@@ -153,8 +157,9 @@ double forward_adjgradtangent(struct field *Bparg, struct field *gradBparg, stru
 	Rhat[0] = 1.0; Rhat[1] = 0.0;
 	for (row=0;row<2;row++)
 	{
+		extraterm = 0.0;
 		for (col=0;col<2;col++) {
-			extraterm = ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg->value[row] + Xparg->loc[0] * ( gradBparg->derivative[row][col] - gradBparg->derivative[2][col]*Bparg->value[row]/Bparg->value[2] ) ) ;
+			extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg->value[row] + Xparg->loc[0] * ( gradBparg->derivative[row][col] - gradBparg->derivative[2][col]*Bparg->value[row]/Bparg->value[2] ) ) ;
 		}
 		adjfunc += ( lambdaarg->loc[row] * Xparg->loc[0] * ( - gradBparg->value[row] + gradBparg->value[2]*Bparg->value[row] / Bparg->value[2] ) / Bparg->value[2] - mu->loc[row] * extraterm );
 	//printf("lambda=%f\n", lambdaarg->loc[row]);
@@ -532,9 +537,9 @@ void RK4_adjtangent(struct position *Xp, struct position *lambda, struct positio
 void RK4_adjgrad(double *number, struct position *Xp, struct position *lambda, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs)
 {
 	struct field *Bpoint, *Bpointgrad;
-	struct position *dXp1, *dXp2, *dXp3, *dXp4, Xpold;
-	struct position *dlambda1, *dlambda2, *dlambda3, *dlambda4, lambdaold;
-	double dnumber1, dnumber2, dnumber3, dnumber4;
+	struct position *dXp[4], Xpold;
+	struct position *dlambda[4], lambdaold;
+	double dnumber[4];
 	double numberold;
 	numberold = *number;
 	Xpold = *Xp;
@@ -542,46 +547,46 @@ void RK4_adjgrad(double *number, struct position *Xp, struct position *lambda, d
 	Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	dXp1 = forward(Bpoint, Xp);
-	dlambda1 = forward_adjsimple(Bpoint, Xp, lambda);
-	dnumber1 = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
+	dXp[0] = forward(Bpoint, Xp);
+	dlambda[0] = forward_adjsimple(Bpoint, Xp, lambda);
+	dnumber[0] = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
 	//printf("dnumber1=%f\n", dnumber1);
-	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp1);
-	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda1);
+	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
+	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda[0]);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
-	dXp2 = forward(Bpoint, Xp);
-	dlambda2 = forward_adjsimple(Bpoint, Xp, lambda);
-	dnumber2 = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
+	dXp[1] = forward(Bpoint, Xp);
+	dlambda[1] = forward_adjsimple(Bpoint, Xp, lambda);
+	dnumber[1] = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
 	//printf("dnumber2=%f\n", dnumber2);
-	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp2);
-	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda2);
+	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[1]);
+	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda[1]);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
-	dXp3 = forward(Bpoint, Xp);
-	dlambda3 = forward_adjsimple(Bpoint, Xp, lambda);
-	dnumber3 = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
+	dXp[2] = forward(Bpoint, Xp);
+	dlambda[2] = forward_adjsimple(Bpoint, Xp, lambda);
+	dnumber[2] = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
 	//printf("dnumber3=%f\n", dnumber3);
-	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp3);
-	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda3);
+	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp[2]);
+	*lambda = addstructs(1.0, &lambdaold, dvarphi, dlambda[2]);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
-	dXp4 = forward(Bpoint, Xp);
-	dlambda4 = forward_adjsimple(Bpoint, Xp, lambda);
-	dnumber4 = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
+	dXp[3] = forward(Bpoint, Xp);
+	dlambda[3] = forward_adjsimple(Bpoint, Xp, lambda);
+	dnumber[3] = forward_adjgrad(Bpoint, Bpointgrad, Xp, lambda);
 	//printf("dnumber4=%f\n", dnumber4);
-	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp1);
-	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp2);
-	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp3);
-	*Xp = addstructs(1.0, Xp,     (1.0/6.0)*dvarphi, dXp4);
-	*lambda = addstructs(1.0, &lambdaold, (1.0/6.0)*dvarphi, dlambda1);
-	*lambda = addstructs(1.0, lambda,     (1.0/3.0)*dvarphi, dlambda2);
-	*lambda = addstructs(1.0, lambda,     (1.0/3.0)*dvarphi, dlambda3);
-	*lambda = addstructs(1.0, lambda,     (1.0/6.0)*dvarphi, dlambda4);
-	*number = numberold + dvarphi*(dnumber1/6.0 + dnumber2/3.0 + dnumber3/3.0 + dnumber4/6.0);
+	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp[0]);
+	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[1]);
+	*Xp = addstructs(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[2]);
+	*Xp = addstructs(1.0, Xp,     (1.0/6.0)*dvarphi, dXp[3]);
+	*lambda = addstructs(1.0, &lambdaold, (1.0/6.0)*dvarphi, dlambda[0]);
+	*lambda = addstructs(1.0, lambda,     (1.0/3.0)*dvarphi, dlambda[1]);
+	*lambda = addstructs(1.0, lambda,     (1.0/3.0)*dvarphi, dlambda[2]);
+	*lambda = addstructs(1.0, lambda,     (1.0/6.0)*dvarphi, dlambda[3]);
+	*number = numberold + dvarphi*(dnumber[0]/6.0 + dnumber[1]/3.0 + dnumber[2]/3.0 + dnumber[3]/6.0);
 	//printf("number=%f\n", *number);
 	//printf("numberold=%f\n", numberold);
 	return;
@@ -611,7 +616,7 @@ void RK4_adjgradtangent(double *number, struct position *Xp, struct position *la
 	*mu = addstructs(1.0, &muold, 0.5*dvarphi, dmu[0]);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
+	Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	dXp[1] = forward(Bpoint, Xp);
 	dlambda[1] = forward_adjtangent(Bpoint, Xp, lambda, sperp, mu);
 	dsperp[1] = forward_sperp(Bpoint, Xp, sperp);
@@ -623,16 +628,16 @@ void RK4_adjgradtangent(double *number, struct position *Xp, struct position *la
 	*lambda = addstructs(1.0, &muold, 0.5*dvarphi, dmu[1]);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);
+	Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	dXp[2] = forward(Bpoint, Xp);
 	dlambda[2] = forward_adjtangent(Bpoint, Xp, lambda, sperp, mu);
 	dsperp[2] = forward_sperp(Bpoint, Xp, sperp);
 	dmu[2] = forward_adjsimple(Bpoint, Xp, mu);
 	dnumber[2] = forward_adjgradtangent(Bpoint, Bpointgrad, Xp, lambda, sperp, mu);
 	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp[2]);
-	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda[2]);
+	*lambda = addstructs(1.0, &lambdaold, dvarphi, dlambda[2]);
 	*sperp = addstructs(1.0, &sperpold, dvarphi, dsperp[2]);
-	*mu = addstructs(1.0, &muold, 0.5*dvarphi, dmu[2]);
+	*mu = addstructs(1.0, &muold, dvarphi, dmu[2]);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
 	Bpointgrad = gradBfield(Xp->loc, varphi, coils, num_coils, num_segs);

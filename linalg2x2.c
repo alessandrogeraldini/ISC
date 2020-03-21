@@ -213,7 +213,6 @@ void symmeigs(double **input, double *evec_largeeval, double *evec_smalleval, do
 	}
 	crossprod = evec_largeeval[0]*evec_smalleval[1] - evec_largeeval[1]*evec_smalleval[0];
 	if (crossprod < 0.0) {
-		printf("\n\n\n\n\n\n\n\nYOLO\n\n\n\n\n\n\n");
 		evec_smalleval[0] *= (-1);
 		evec_smalleval[1] *= (-1);
 	}

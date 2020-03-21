@@ -364,11 +364,11 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 		magfield->derivative[2][1] = dBvarphidZ;
 	}
 	else if (strncmp(type, "Reim", 4) == 0) {
-		epsilon[0] = 0.0103; //epsilon[1] = 0.0;
+		epsilon[0] = 0.001; //epsilon[1] = 0.0;
 		//epsilon[0] = 0.0; epsilon[1] = 0.0;
 		k_theta[0] = 6; //k_theta[1] = 3;
 		//epsilon[0] = 0.00; epsilon[1] = 0.00;
-		iota[0] = 0.15; iota[1] = 0.3802;
+		iota[0] = 0.15; iota[1] = 0.38;
 		magfield = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
 		//theta = atan2(Xp[1], Xp[0] - R_axis);
 		//rmin = sqrt(pow((Xp[0]-R_axis), 2.0) + pow(Xp[1], 2.0));
@@ -533,11 +533,11 @@ struct field *gradBfield(double *Xp, double varphi, double ***coils, int *num_co
 	int m0_symmetry = 1;
 	double epsilon[1], iota[2]; 
 	int k_theta[1];
-	epsilon[0] = 0.0103; 
+	epsilon[0] = 0.001; 
 	//epsilon[0] = 0.0; epsilon[1] = 0.0;
 	k_theta[0] = 6; 
 	//epsilon[0] = 0.00; epsilon[1] = 0.00;
-	iota[0] = 0.15; iota[1] = 0.3802;
+	iota[0] = 0.15; iota[1] = 0.38;
 	gradmagfield = gradBReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
 	return gradmagfield;
 }

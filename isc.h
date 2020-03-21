@@ -130,7 +130,7 @@ void RK4_adjtangent(struct position *Xp, struct position *lambda, struct positio
    follows adjoint variable of field line position with additional constraint from tangent map 
    includes only homogeneous terms (linear in mu or lambda), jumps from source terms taken care of separately */
 
-void RK4_adjgrad(double *number, struct position *centre, struct position *lambda_centre, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs);
+void RK4_adjgrad(double *number, struct position *centre, struct position *lambda_circ, double varphi, double dvarphi, double ***coils, int *num_coils, int **num_segs);
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line circumference, tangent map (eventually), and island width (eventually) */
 
@@ -152,6 +152,8 @@ struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turn
 double *islandwidth(struct ext_position *ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates island width */
 
+double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) ;
+
 struct position findadjsimple(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* finds the periodic adjoint solution lambda (its initial value) that constrains the field line to be periodic */
 
@@ -161,7 +163,7 @@ struct position **findadjtangent(double ***coils, int *n_coils, int **n_segs, st
 /* finds the adjoint solutions that constrain the field line to be periodic (lambdaQ) 
    and constrain the initial tangent map variation to be zero (mu) */
 
-double *adjgrad(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
+double *adjgrad(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
 /* evaluates (eventually shape) gradient of circumference, tangent map (eventually) and island width (eventually) */
 
 double *adjgradtangent(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position **lambda_centre, struct position **mu, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
