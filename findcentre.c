@@ -167,7 +167,7 @@ struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turn
 	double varphi=0.0, omega, *angle_axis;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
 	double **inverted, **adjinverted, detcentre, adjdetcentre, **evecs1, *evals1, det=0, trace=0;
-	double circumference, ref_angle, **result;
+	double circumference, ref_angle, **result, **result2;
 	double *evals=malloc(2*sizeof(double));
 	int N_line=0, main_ind, centre_ind, sec_ind;
 	struct ext_position *ext_centre;
@@ -306,6 +306,7 @@ struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turn
 				multiply2x2reassign(ext_centre[main_ind].full_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints], 2); 
 			}
 			result = multiply2x2(ext_centre[main_ind].full_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints], 2); 
+			result2 = multiply2x2(ext_centre[main_ind].full_tangent, result, 2); 
 			for (sec_ind=0; sec_ind<(q0+centre_ind)%L_fixedpoints; sec_ind++) {
 				multiply2x2reassign(ext_centre[(sec_ind+1+main_ind)%L_fixedpoints].part_tangent, ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints], 2); 
 			}
@@ -313,8 +314,11 @@ struct ext_position *alongcentre(double RR, double ZZ, double *axis, int *n_turn
 			ext_centre[main_ind].sperp[(main_ind+q0+centre_ind)%L_fixedpoints][0] = ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints][0][0]*ext_centre[main_ind].eperp[0] + ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints][0][1]*ext_centre[main_ind].eperp[1];
 			ext_centre[main_ind].sperp[(main_ind+q0+centre_ind)%L_fixedpoints][1] = ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints][1][0]*ext_centre[main_ind].eperp[0] + ext_centre[main_ind].long_tangent[(main_ind+q0+centre_ind)%L_fixedpoints][1][1]*ext_centre[main_ind].eperp[1];
 		}
-		ext_centre[main_ind].sperp_final[0] = result[0][0]*ext_centre[main_ind].eperp[0] + result[0][1]*ext_centre[main_ind].eperp[1];
-		ext_centre[main_ind].sperp_final[1] = result[1][0]*ext_centre[main_ind].eperp[0] + result[1][1]*ext_centre[main_ind].eperp[1];
+		//ext_centre[main_ind].sperp_final[0] = result[0][0]*ext_centre[main_ind].eperp[0] + result[0][1]*ext_centre[main_ind].eperp[1];
+		//ext_centre[main_ind].sperp_final[1] = result[1][0]*ext_centre[main_ind].eperp[0] + result[1][1]*ext_centre[main_ind].eperp[1];
+		//sperp_final is probably unnecessary
+		//ext_centre[main_ind].sperp_final[0] = result2[0][0]*ext_centre[main_ind].eperp[0] + result2[0][1]*ext_centre[main_ind].eperp[1];
+		//ext_centre[main_ind].sperp_final[1] = result2[1][0]*ext_centre[main_ind].eperp[0] + result2[1][1]*ext_centre[main_ind].eperp[1];
 	}
 	//ext_centre[centre_index % L_fixedpoints].part_tangent = multiply2x2(centre[centre_index % L_fixedpoints].tangent, inverted, 2);
 	//clock_t int3 = clock();
@@ -329,8 +333,8 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 	struct position centre, lambda, mu, sperp;
 	double varphi=0.0, chordlength, chordpluslength, *vecresult;
 	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
-	double *gradcircumference, *gradtangent, initial=0.0, initialgradcirc=0.0, *adjgradwidth;
-	double *wperp, sum_matrix_elements, matrix_element;
+	double *gradcircumference, *gradtangent, initialgradcirc=0.0, *gradwidth;
+	double *width, sum_matrix_elements, matrix_element;
 	double circumference2=ext_centre[0].circumference, circumference;
 	double matrix_element_oldway, sum_matrix_elements_oldway=0.0;
 	printf("tor_mode=%d\n", tor_mode);
@@ -339,7 +343,7 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 	else 				 
 		L_fixedpoints = m0_symmetry*pol_mode;
 	printf("L_fixedpoints=%d\n", L_fixedpoints);
-	wperp = malloc(L_fixedpoints*sizeof(double));
+	width = malloc(L_fixedpoints*sizeof(double));
 	for (main_ind=0;main_ind<L_fixedpoints; main_ind++) {
 		sum_matrix_elements = sum_matrix_elements_oldway = circumference = 0.0;		
 		for (sec_ind=0;sec_ind<L_fixedpoints; sec_ind++) {
@@ -367,12 +371,12 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 		//printf("circumference_oldway = %f\n", circumference2);
 		printf("sum_matrix_elements = %f\n", sum_matrix_elements);
 		//printf("sum_matrix_elements_oldway = %f\n", sum_matrix_elements_oldway);
-		wperp[main_ind] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
-		printf("width = %f for index= %d\n", wperp[main_ind], main_ind);
+		width[main_ind] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
+		printf("width = %f for index= %d\n", width[main_ind], main_ind);
 	}
 
 	gradtangent = malloc(L_fixedpoints*sizeof(double));
-	adjgradwidth = malloc(L_fixedpoints*sizeof(double));
+	gradwidth = malloc(L_fixedpoints*sizeof(double));
 	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
 	//lambda_circ.loc[0] = lambda[0]; lambda_circ.loc[1] = lambda[1];
 	centre.tangent = set_identity();
@@ -411,19 +415,24 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 	sperp.tangent = set_identity();
 	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
 		varphi = main_ind*2.0*M_PI/m0_symmetry;
-		initial = 0.0;
-		gradtangent[main_ind] = initial; 
+		gradtangent[main_ind] = 0.0; 
+		centre.loc[0] = ext_centre[main_ind].loc[0]; centre.loc[1] = ext_centre[main_ind].loc[1];
 		centre.tangent[0][0] = centre.tangent[1][1] = 1.0;
 		centre.tangent[0][1] = centre.tangent[1][0] = 0.0;
+		vecresult = multiply(centre.tangent, ext_centre[main_ind].eperp);
+		sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
+		free(vecresult);
 		for (Q_ind=0;Q_ind<Q0_ind;Q_ind++) {
 			lambda = lambda_tangent[main_ind][Q_ind];
 			mu = mu_tangent[main_ind][Q_ind];
 			//printstruct("lambda", &lambda);
 			//printstruct("mu", &mu);
+
 			centre.loc[0] = ext_centre[main_ind].loc[0]; centre.loc[1] = ext_centre[main_ind].loc[1];
 			vecresult = multiply(centre.tangent, ext_centre[main_ind].eperp);
 			sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
 			free(vecresult);
+
 			//printf("sperp=%f\n", sperp.tangent[1][1]);
 			//centre->tangent[0][0] = 1.0 ; centre->tangent[0][1] = 0.0;
 			//centre->tangent[1][0] = 0.0 ; centre->tangent[0][1] = 1.0;
@@ -445,6 +454,7 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 					//	printstruct("lambda", &lambda);
 					//}
 					q_ind = Q_ind*L_fixedpoints + sec_ind;
+					//check if makes sense
 					if ( q_ind >= q0_ind && q_ind < q0_ind + L_fixedpoints) {
 						mu.loc[0] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[0]);
 						mu.loc[1] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[1]);
@@ -460,55 +470,58 @@ double *islandwidthnew(double ***coils, int *n_coils, int **n_segs, struct ext_p
 		//printstruct("lambda", &lambda);
 		//printstruct("Xp",&centre);
 	}
-	for (sec_ind=0; sec_ind<L_fixedpoints; sec_ind++) {
-		printf("gradtangent = %f\n", gradtangent[sec_ind]);
+	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
+		gradwidth[main_ind] = width[main_ind]*((*gradcircumference)/circumference - gradtangent[main_ind]/sum_matrix_elements);
+		printf("gradcirc = %f\n", *gradcircumference);
+		printf("gradtangent = %f\n", gradtangent[main_ind]);
+		printf("gradwidth = %f\n", gradwidth[main_ind]);
 	}
 
-	return wperp;
+	return width;
 }
 
-double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
-	int main_index, centre_index, L_fixedpoints;
-	double *wperp, sum_matrix_elements, matrix_element;
-	double circumference2=ext_fieldline[0].circumference, circumference;
-	double matrix_element_oldway, sum_matrix_elements_oldway=0.0;
-	printf("tor_mode=%d\n", tor_mode);
-	if (tor_mode % m0_symmetry == 0) L_fixedpoints = pol_mode;	
-	else 				   L_fixedpoints = m0_symmetry*pol_mode;
-	printf("L_fixedpoints=%d\n", L_fixedpoints);
-	wperp = malloc(L_fixedpoints*sizeof(double));
-	for (main_index=0;main_index<L_fixedpoints; main_index++) {
-		sum_matrix_elements = sum_matrix_elements_oldway = circumference = 0.0;		
-		for (centre_index=0;centre_index<L_fixedpoints; centre_index++) {
-			circumference += pow( pow(ext_fieldline[main_index].chord[0], 2.0) + pow(ext_fieldline[main_index].chord[1], 2.0) , 0.5 );
-			matrix_element_oldway = inner(ext_fieldline[centre_index].epar, 
-					       ext_fieldline[main_index].long_tangent[centre_index], 
-					       ext_fieldline[main_index].eperp);	
-			matrix_element = ext_fieldline[centre_index].epar[0]*ext_fieldline[main_index].sperp[centre_index][0] + ext_fieldline[centre_index].epar[1]*ext_fieldline[main_index].sperp[centre_index][1];
-			sum_matrix_elements_oldway += fabs(matrix_element_oldway);
-			//sum_matrix_elements += fabs(matrix_element);
-			//printf("matrix_element=%f\n", matrix_element);
-			sum_matrix_elements += matrix_element;
-			//printf("sum_matrix_element=%f\n", sum_matrix_elements);
-			//sum_matrix_elements += fabs(matrix_element)/sin(ext_fieldline[main_index].angle*ext_fieldline[main_index].q0_index/L_fixedpoints); //This has the sin piece in the denominator, which can be safely set to unity
-			//circumference += sqrt(pow(ext_fieldline[(centre_index+1)%L_fixedpoints].loc[0] 
-			//		        - ext_fieldline[centre_index].loc[0], 2.0)
-			//	    	    + pow(ext_fieldline[(centre_index+1)%L_fixedpoints].loc[1] 
-			//			- ext_fieldline[centre_index].loc[1], 2.0));
-			//printf("circumference = %f\nmatrix_element = %f\n", circumference, matrix_element);
-			//printf("other circumference = %f\n", ext_fieldline[centre_index].circumference);
-		}
-		//circumference = 2.0*M_PI*0.2102;
-		//circumference = 2.0*M_PI*0.2094;
-		printf("circumference = %f\n", circumference);
-		//printf("circumference_oldway = %f\n", circumference2);
-		printf("sum_matrix_elements = %f\n", sum_matrix_elements);
-		//printf("sum_matrix_elements_oldway = %f\n", sum_matrix_elements_oldway);
-		wperp[main_index] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
-		printf("width = %f for index= %d\n", wperp[main_index], main_index);
-	}
-	return wperp;
-}
+//double *islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+//	int main_index, centre_index, L_fixedpoints;
+//	double *wperp, sum_matrix_elements, matrix_element;
+//	double circumference2=ext_fieldline[0].circumference, circumference;
+//	double matrix_element_oldway, sum_matrix_elements_oldway=0.0;
+//	printf("tor_mode=%d\n", tor_mode);
+//	if (tor_mode % m0_symmetry == 0) L_fixedpoints = pol_mode;	
+//	else 				   L_fixedpoints = m0_symmetry*pol_mode;
+//	printf("L_fixedpoints=%d\n", L_fixedpoints);
+//	wperp = malloc(L_fixedpoints*sizeof(double));
+//	for (main_index=0;main_index<L_fixedpoints; main_index++) {
+//		sum_matrix_elements = sum_matrix_elements_oldway = circumference = 0.0;		
+//		for (centre_index=0;centre_index<L_fixedpoints; centre_index++) {
+//			circumference += pow( pow(ext_fieldline[main_index].chord[0], 2.0) + pow(ext_fieldline[main_index].chord[1], 2.0) , 0.5 );
+//			matrix_element_oldway = inner(ext_fieldline[centre_index].epar, 
+//					       ext_fieldline[main_index].long_tangent[centre_index], 
+//					       ext_fieldline[main_index].eperp);	
+//			matrix_element = ext_fieldline[centre_index].epar[0]*ext_fieldline[main_index].sperp[centre_index][0] + ext_fieldline[centre_index].epar[1]*ext_fieldline[main_index].sperp[centre_index][1];
+//			sum_matrix_elements_oldway += fabs(matrix_element_oldway);
+//			//sum_matrix_elements += fabs(matrix_element);
+//			//printf("matrix_element=%f\n", matrix_element);
+//			sum_matrix_elements += matrix_element;
+//			//printf("sum_matrix_element=%f\n", sum_matrix_elements);
+//			//sum_matrix_elements += fabs(matrix_element)/sin(ext_fieldline[main_index].angle*ext_fieldline[main_index].q0_index/L_fixedpoints); //This has the sin piece in the denominator, which can be safely set to unity
+//			//circumference += sqrt(pow(ext_fieldline[(centre_index+1)%L_fixedpoints].loc[0] 
+//			//		        - ext_fieldline[centre_index].loc[0], 2.0)
+//			//	    	    + pow(ext_fieldline[(centre_index+1)%L_fixedpoints].loc[1] 
+//			//			- ext_fieldline[centre_index].loc[1], 2.0));
+//			//printf("circumference = %f\nmatrix_element = %f\n", circumference, matrix_element);
+//			//printf("other circumference = %f\n", ext_fieldline[centre_index].circumference);
+//		}
+//		//circumference = 2.0*M_PI*0.2102;
+//		//circumference = 2.0*M_PI*0.2094;
+//		printf("circumference = %f\n", circumference);
+//		//printf("circumference_oldway = %f\n", circumference2);
+//		printf("sum_matrix_elements = %f\n", sum_matrix_elements);
+//		//printf("sum_matrix_elements_oldway = %f\n", sum_matrix_elements_oldway);
+//		wperp[main_index] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
+//		printf("width = %f for index= %d\n", wperp[main_index], main_index);
+//	}
+//	return wperp;
+//}
 
 struct position findadjsimple(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
 	// declarations
@@ -746,19 +759,15 @@ struct position **findadjtangent(double ***coils, int *n_coils, int **n_segs, st
 				}
 				vector = multiply(matrix2, ext_centre[main_ind].eperp);
 				sperp.loc[0] = vector[0];  sperp.loc[1] = vector[1];
-				sperp.tangent[0][0] = 1.0; 
-				sperp.tangent[1][0] = 0.0; 
-				sperp.tangent[0][1] = 0.0; 
-				sperp.tangent[1][1] = 1.0; 
+				sperp.tangent[0][0] = sperp.tangent[1][1] = 1.0; 
+				sperp.tangent[1][0] = sperp.tangent[0][1] = 0.0; 
 				//printstruct("lambda", lambda[main_ind]+Q_ind);
 				//lambda[main_ind][Q_ind].tangent[0][0] = 1.0; lambda[main_ind][Q_ind].tangent[1][0] = 0.0; 
 				//lambda[main_ind][Q_ind].tangent[0][1] = 0.0; lambda[main_ind][Q_ind].tangent[1][1] = 1.0; 
 				fieldline.loc[0] = fieldline_start.loc[0];
 				fieldline.loc[1] = fieldline_start.loc[1];
-				fieldline.tangent[0][0] = 1.0; 
-				fieldline.tangent[1][0] = 0.0; 
-				fieldline.tangent[0][1] = 0.0; 
-				fieldline.tangent[1][1] = 1.0; 
+				fieldline.tangent[0][0] = fieldline.tangent[1][1] = 1.0; 
+				fieldline.tangent[1][0] = fieldline.tangent[0][1] = 0.0; 
 				//printstruct("fieldline", &fieldline);
 				//printstruct("lambdain", &lambdain);
 				muvar = mu[main_ind][Q_ind];
@@ -849,204 +858,215 @@ struct position **findadjtangent(double ***coils, int *n_coils, int **n_segs, st
 	return lambda;
 }
 
-double *adjgrad(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
-	// declarations
-	//clock_t start = clock();
-	int i=0, q0_ind, Q0_ind, Q_ind, q_ind, main_ind, sec_ind, N_line=0, L_fixedpoints;
-	struct position centre, lambda, mu, sperp;
-	double varphi=0.0, chordlength, chordpluslength, *vecresult;
-	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
-	double *gradcircumference, *gradtangent, initial=0.0, initialgradcirc=0.0, *adjgradwidth;
-	if (tor_mode % m0_symmetry == 0) 
-		L_fixedpoints = pol_mode;	
-	else 				 
-		L_fixedpoints = m0_symmetry*pol_mode;
+//double *adjgrad(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+//	// declarations
+//	//clock_t start = clock();
+//	int i=0, q0_ind, Q0_ind, Q_ind, q_ind, main_ind, sec_ind, ind, N_line=0, L_fixedpoints;
+//	struct position centre, lambda, mu, sperp;
+//	double varphi=0.0, chordlength, chordpluslength, *vecresult, **matrix2;
+//	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
+//	double *gradcircumference, *gradtangent, initial=0.0, initialgradcirc=0.0, *adjgradwidth;
+//	if (tor_mode % m0_symmetry == 0) 
+//		L_fixedpoints = pol_mode;	
+//	else 				 
+//		L_fixedpoints = m0_symmetry*pol_mode;
+//
+//	matrix2=set_identity();
+//	gradtangent = malloc(L_fixedpoints*sizeof(double));
+//	adjgradwidth = malloc(L_fixedpoints*sizeof(double));
+//	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
+//	//lambda_circ.loc[0] = lambda[0]; lambda_circ.loc[1] = lambda[1];
+//	centre.tangent = set_identity();
+//	//lambda_circ.tangent = set_identity();
+//	gradcircumference = &initialgradcirc;
+//	N_line = L_fixedpoints*N_gridphi_per_field_period;
+//	printf("N_line = %d\n", N_line);
+//	printf("field_periods = %d\n", m0_symmetry);
+//	printf("field_periods = %d\n", m0_symmetry);
+//	printf("field_periods = %d\n", m0_symmetry);
+//	varphi = 0.0;
+//	for (i=0; i<N_line; i++)
+//	{
+//		if (i%N_gridphi_per_field_period==0)
+//		{
+//			main_ind = i/N_gridphi_per_field_period;
+//			chordlength= pow( pow(ext_centre[main_ind].chord[0], 2.0) + pow(ext_centre[main_ind].chord[1], 2.0), 0.5);
+//			chordpluslength= pow( pow(ext_centre[main_ind].chordplus[0], 2.0) + pow(ext_centre[main_ind].chordplus[1], 2.0), 0.5);
+//			lambda_circ->loc[0] += (ext_centre[main_ind].chord[0]/chordlength - ext_centre[main_ind].chordplus[0]/chordpluslength);
+//			lambda_circ->loc[1] += (ext_centre[main_ind].chord[1]/chordlength - ext_centre[main_ind].chordplus[1]/chordpluslength);
+//		}
+//		RK4_adjgrad(gradcircumference, &centre, lambda_circ, varphi, dvarphi, coils, n_coils, n_segs);
+//		varphi += dvarphi;
+//		//printf("gradcircumference = %f\n", *gradcircumference);
+//	}
+//	//printf("varphi = %f\n", varphi);
+//	printstruct("lambda",lambda_circ);
+//	printstruct("lambda",lambda_circ);
+//	printstruct("Xp",&centre);
+//	printf("gradcircumference = %f\n", *gradcircumference);
+//	printf("gradcircumference = %f\n", *gradcircumference);
+//
+//	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
+//	centre.tangent[0][0] = centre.tangent[1][1] = 1.0;
+//	centre.tangent[0][1] = centre.tangent[1][0] = 0.0;
+//	//centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
+//	////lambda_centre.loc[0] = lambda[0]; lambda_centre.loc[1] = lambda[1];
+//	//centre.tangent = set_identity();
+//	//lambda_centre.tangent = set_identity();
+//	q0_ind = ext_centre[0].q0_index; 
+//	Q0_ind = q0_ind/L_fixedpoints + 2;
+//	sperp.tangent = set_identity();
+//	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
+//		varphi = main_ind*2.0*M_PI/m0_symmetry;
+//		initial = 0.0;
+//		gradtangent[main_ind] = initial; 
+//		centre.tangent[0][0] = centre.tangent[1][1] = 1.0;
+//		centre.tangent[0][1] = centre.tangent[1][0] = 0.0;
+//		for (Q_ind=0;Q_ind<Q0_ind;Q_ind++) {
+//			lambda = lambda_tangent[main_ind][Q_ind];
+//			mu = mu_tangent[main_ind][Q_ind];
+//			//printstruct("lambda", &lambda);
+//			//printstruct("mu", &mu);
+//			matrix2[0][0] = matrix2[1][1] = 1.0;
+//			matrix2[0][1] = matrix2[1][0] = 0.0;
+//			for (ind=0;ind<Q_ind; ind++) {
+//				multiply2x2reassign(ext_centre[main_ind].full_tangent, matrix2, 2);
+//			}
+//			vecresult = multiply(matrix2, ext_centre[main_ind].eperp);
+//			sperp.loc[0] = vecresult[0];  sperp.loc[1] = vecresult[1];
+//			free(vecresult);
+//			sperp.tangent[0][0] = sperp.tangent[1][1] = 1.0; 
+//			sperp.tangent[1][0] = sperp.tangent[0][1] = 0.0; 
+//			centre.loc[0] = ext_centre[main_ind].loc[0]; centre.loc[1] = ext_centre[main_ind].loc[1];
+//			//vecresult = multiply(centre.tangent, ext_centre[main_ind].eperp);
+//			//sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
+//			//free(vecresult);
+//			//printf("sperp=%f\n", sperp.tangent[1][1]);
+//			//centre->tangent[0][0] = 1.0 ; centre->tangent[0][1] = 0.0;
+//			//centre->tangent[1][0] = 0.0 ; centre->tangent[0][1] = 1.0;
+//			for (i=0; i<N_line; i++)
+//			{
+//				if (i%N_gridphi_per_field_period==0)
+//				{
+//					sec_ind = i/N_gridphi_per_field_period;
+//					//printf("varphi = %f\n", varphi);
+//					//printstruct("Xp", &centre);
+//					//printf("gradtangent = %f\n", gradtangent[sec_ind]);
+//					//if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
+//					//printstruct("lambda\n", lambda);
+//					//if (sec_ind==0) 
+//					//{
+//					//	printf("main_ind=%d, Q_ind=%d, sec_ind=%d\n", main_ind, Q_ind, sec_ind); 
+//					//	printf("gradtangent = %f\n", gradtangent[main_ind]);
+//					//	printstruct("mu", &mu);
+//					//	printstruct("lambda", &lambda);
+//					//}
+//					q_ind = Q_ind*L_fixedpoints + sec_ind;
+//					if ( q_ind >= q0_ind && q_ind < q0_ind + L_fixedpoints) {
+//						mu.loc[0] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[0]);
+//						mu.loc[1] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[1]);
+//					}
+//				}
+//				//RK4_adjtangent(&centre, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
+//				//RK4_adjgrad(gradtangent, &centre, &lambda, varphi, dvarphi, coils, n_coils, n_segs);
+//				RK4_adjgradtangent(gradtangent+main_ind, &centre, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
+//				varphi += dvarphi;
+//			}
+//		}
+//		//printf("varphi = %f\n", varphi);
+//		//printstruct("lambda", &lambda);
+//		//printstruct("Xp",&centre);
+//	}
+//	for (sec_ind=0; sec_ind<L_fixedpoints; sec_ind++) {
+//		printf("gradtangent = %f\n", gradtangent[sec_ind]);
+//	}
+//
+//	return gradtangent;
+//}
 
-	gradtangent = malloc(L_fixedpoints*sizeof(double));
-	adjgradwidth = malloc(L_fixedpoints*sizeof(double));
-	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
-	//lambda_circ.loc[0] = lambda[0]; lambda_circ.loc[1] = lambda[1];
-	centre.tangent = set_identity();
-	//lambda_circ.tangent = set_identity();
-	gradcircumference = &initialgradcirc;
-	N_line = L_fixedpoints*N_gridphi_per_field_period;
-	printf("N_line = %d\n", N_line);
-	printf("field_periods = %d\n", m0_symmetry);
-	printf("field_periods = %d\n", m0_symmetry);
-	printf("field_periods = %d\n", m0_symmetry);
-	varphi = 0.0;
-	for (i=0; i<N_line; i++)
-	{
-		if (i%N_gridphi_per_field_period==0)
-		{
-			main_ind = i/N_gridphi_per_field_period;
-			chordlength= pow( pow(ext_centre[main_ind].chord[0], 2.0) + pow(ext_centre[main_ind].chord[1], 2.0), 0.5);
-			chordpluslength= pow( pow(ext_centre[main_ind].chordplus[0], 2.0) + pow(ext_centre[main_ind].chordplus[1], 2.0), 0.5);
-			lambda_circ->loc[0] += (ext_centre[main_ind].chord[0]/chordlength - ext_centre[main_ind].chordplus[0]/chordpluslength);
-			lambda_circ->loc[1] += (ext_centre[main_ind].chord[1]/chordlength - ext_centre[main_ind].chordplus[1]/chordpluslength);
-		}
-		RK4_adjgrad(gradcircumference, &centre, lambda_circ, varphi, dvarphi, coils, n_coils, n_segs);
-		varphi += dvarphi;
-		//printf("gradcircumference = %f\n", *gradcircumference);
-	}
-	//printf("varphi = %f\n", varphi);
-	printstruct("lambda",lambda_circ);
-	printstruct("lambda",lambda_circ);
-	printstruct("Xp",&centre);
-	printf("gradcircumference = %f\n", *gradcircumference);
-	printf("gradcircumference = %f\n", *gradcircumference);
-
-	centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
-	centre.tangent[0][0] = centre.tangent[1][1] = 1.0;
-	centre.tangent[0][1] = centre.tangent[1][0] = 0.0;
-	//centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
-	////lambda_centre.loc[0] = lambda[0]; lambda_centre.loc[1] = lambda[1];
-	//centre.tangent = set_identity();
-	//lambda_centre.tangent = set_identity();
-	q0_ind = ext_centre[0].q0_index; 
-	Q0_ind = q0_ind/L_fixedpoints + 2;
-	sperp.tangent = set_identity();
-	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
-		varphi = main_ind*2.0*M_PI/m0_symmetry;
-		initial = 0.0;
-		gradtangent[main_ind] = initial; 
-		centre.tangent[0][0] = centre.tangent[1][1] = 1.0;
-		centre.tangent[0][1] = centre.tangent[1][0] = 0.0;
-		for (Q_ind=0;Q_ind<Q0_ind;Q_ind++) {
-			lambda = lambda_tangent[main_ind][Q_ind];
-			mu = mu_tangent[main_ind][Q_ind];
-			//printstruct("lambda", &lambda);
-			//printstruct("mu", &mu);
-			centre.loc[0] = ext_centre[main_ind].loc[0]; centre.loc[1] = ext_centre[main_ind].loc[1];
-			vecresult = multiply(centre.tangent, ext_centre[main_ind].eperp);
-			sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
-			free(vecresult);
-			//printf("sperp=%f\n", sperp.tangent[1][1]);
-			//centre->tangent[0][0] = 1.0 ; centre->tangent[0][1] = 0.0;
-			//centre->tangent[1][0] = 0.0 ; centre->tangent[0][1] = 1.0;
-			for (i=0; i<N_line; i++)
-			{
-				if (i%N_gridphi_per_field_period==0)
-				{
-					sec_ind = i/N_gridphi_per_field_period;
-					//printf("varphi = %f\n", varphi);
-					//printstruct("Xp", &centre);
-					//printf("gradtangent = %f\n", gradtangent[sec_ind]);
-					//if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
-					//printstruct("lambda\n", lambda);
-					//if (sec_ind==0) 
-					//{
-					//	printf("main_ind=%d, Q_ind=%d, sec_ind=%d\n", main_ind, Q_ind, sec_ind); 
-					//	printf("gradtangent = %f\n", gradtangent[main_ind]);
-					//	printstruct("mu", &mu);
-					//	printstruct("lambda", &lambda);
-					//}
-					q_ind = Q_ind*L_fixedpoints + sec_ind;
-					if ( q_ind >= q0_ind && q_ind < q0_ind + L_fixedpoints) {
-						mu.loc[0] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[0]);
-						mu.loc[1] += (ext_centre[(main_ind+sec_ind)%L_fixedpoints].epar[1]);
-					}
-				}
-				//RK4_adjtangent(&centre, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
-				//RK4_adjgrad(gradtangent, &centre, &lambda, varphi, dvarphi, coils, n_coils, n_segs);
-				RK4_adjgradtangent(gradtangent+main_ind, &centre, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
-				varphi += dvarphi;
-			}
-		}
-		//printf("varphi = %f\n", varphi);
-		//printstruct("lambda", &lambda);
-		//printstruct("Xp",&centre);
-	}
-	for (sec_ind=0; sec_ind<L_fixedpoints; sec_ind++) {
-		printf("gradtangent = %f\n", gradtangent[sec_ind]);
-	}
-
-	return gradtangent;
-}
-
-double *adjgradtangent(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
-	// declarations
-	//clock_t start = clock();
-	int i=0, centre_ind, q0_ind, Q0_ind, Q_ind, q_ind, main_ind;
-	struct position fieldline, lambda, mu, sperp;
-	double varphi=0.0, *vecresult;
-	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
-	double *number, initial=0.0;
-	int N_line=0, L_fixedpoints;
-	if (tor_mode % m0_symmetry == 0) 
-		L_fixedpoints = pol_mode;	
-	else 				 
-		L_fixedpoints = m0_symmetry*pol_mode;
-
-	fieldline.loc[0] = ext_centre[0].loc[0]; fieldline.loc[1] = ext_centre[0].loc[1];
-	fieldline.tangent = set_identity();
-	//centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
-	////lambda_centre.loc[0] = lambda[0]; lambda_centre.loc[1] = lambda[1];
-	//centre.tangent = set_identity();
-	//lambda_centre.tangent = set_identity();
-	q0_ind = ext_centre[0].q0_index; 
-	Q0_ind = q0_ind/L_fixedpoints + 2;
-	number = malloc(L_fixedpoints*sizeof(double));
-	sperp.tangent = set_identity();
-	N_line = L_fixedpoints*N_gridphi_per_field_period;
-	printf("N_line = %d\n", N_line);
-	printf("field_periods = %d\n", m0_symmetry);
-	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
-		varphi = main_ind*2.0*M_PI/m0_symmetry;
-		initial = 0.0;
-		number[main_ind] = initial; 
-		fieldline.tangent[0][0] = fieldline.tangent[1][1] = 1.0;
-		fieldline.tangent[0][1] = fieldline.tangent[1][0] = 0.0;
-		for (Q_ind=0;Q_ind<Q0_ind;Q_ind++) {
-			lambda = lambdaQ[main_ind][Q_ind];
-			mu = muQ[main_ind][Q_ind];
-			//printstruct("lambda", &lambda);
-			//printstruct("mu", &mu);
-			fieldline.loc[0] = ext_centre[main_ind].loc[0]; fieldline.loc[1] = ext_centre[main_ind].loc[1];
-			vecresult = multiply(fieldline.tangent, ext_centre[main_ind].eperp);
-			sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
-			free(vecresult);
-			//printf("sperp=%f\n", sperp.tangent[1][1]);
-			//fieldline->tangent[0][0] = 1.0 ; fieldline->tangent[0][1] = 0.0;
-			//fieldline->tangent[1][0] = 0.0 ; fieldline->tangent[0][1] = 1.0;
-			for (i=0; i<N_line; i++)
-			{
-				if (i%N_gridphi_per_field_period==0)
-				{
-					centre_ind = i/N_gridphi_per_field_period;
-					//printf("varphi = %f\n", varphi);
-					//printstruct("Xp", &fieldline);
-					//printf("number = %f\n", number[centre_ind]);
-					//if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
-					//printstruct("lambda\n", lambda);
-					//if (centre_ind==0) 
-					//{
-					//	printf("main_ind=%d, Q_ind=%d, centre_ind=%d\n", main_ind, Q_ind, centre_ind); 
-					//	printf("number = %f\n", number[main_ind]);
-					//	printstruct("mu", &mu);
-					//	printstruct("lambda", &lambda);
-					//}
-					q_ind = Q_ind*L_fixedpoints + centre_ind;
-					if ( q_ind >= q0_ind && q_ind < q0_ind + L_fixedpoints) {
-						mu.loc[0] += (ext_centre[(main_ind+centre_ind)%L_fixedpoints].epar[0]);
-						mu.loc[1] += (ext_centre[(main_ind+centre_ind)%L_fixedpoints].epar[1]);
-					}
-				}
-				//RK4_adjtangent(&fieldline, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
-				//RK4_adjgrad(number, &fieldline, &lambda, varphi, dvarphi, coils, n_coils, n_segs);
-				RK4_adjgradtangent(number+main_ind, &fieldline, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
-				varphi += dvarphi;
-			}
-		}
-		//printf("varphi = %f\n", varphi);
-		//printstruct("lambda", &lambda);
-		//printstruct("Xp",&fieldline);
-	}
-	for (centre_ind=0; centre_ind<L_fixedpoints; centre_ind++) {
-		printf("number = %f\n", number[centre_ind]);
-	}
-	return number;
-}
+//double *adjgradtangent(double ***coils, int *n_coils, int **n_segs, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) {
+//	// declarations
+//	//clock_t start = clock();
+//	int i=0, centre_ind, q0_ind, Q0_ind, Q_ind, q_ind, main_ind;
+//	struct position fieldline, lambda, mu, sperp;
+//	double varphi=0.0, *vecresult;
+//	double dvarphi = 2.0*M_PI/(N_gridphi_per_field_period*m0_symmetry);
+//	double *number, initial=0.0;
+//	int N_line=0, L_fixedpoints;
+//	if (tor_mode % m0_symmetry == 0) 
+//		L_fixedpoints = pol_mode;	
+//	else 				 
+//		L_fixedpoints = m0_symmetry*pol_mode;
+//
+//	fieldline.loc[0] = ext_centre[0].loc[0]; fieldline.loc[1] = ext_centre[0].loc[1];
+//	fieldline.tangent = set_identity();
+//	//centre.loc[0] = ext_centre[0].loc[0]; centre.loc[1] = ext_centre[0].loc[1];
+//	////lambda_centre.loc[0] = lambda[0]; lambda_centre.loc[1] = lambda[1];
+//	//centre.tangent = set_identity();
+//	//lambda_centre.tangent = set_identity();
+//	q0_ind = ext_centre[0].q0_index; 
+//	Q0_ind = q0_ind/L_fixedpoints + 2;
+//	number = malloc(L_fixedpoints*sizeof(double));
+//	sperp.tangent = set_identity();
+//	N_line = L_fixedpoints*N_gridphi_per_field_period;
+//	printf("N_line = %d\n", N_line);
+//	printf("field_periods = %d\n", m0_symmetry);
+//	for (main_ind=0; main_ind<L_fixedpoints; main_ind++) {
+//		varphi = main_ind*2.0*M_PI/m0_symmetry;
+//		initial = 0.0;
+//		number[main_ind] = initial; 
+//		fieldline.tangent[0][0] = fieldline.tangent[1][1] = 1.0;
+//		fieldline.tangent[0][1] = fieldline.tangent[1][0] = 0.0;
+//		for (Q_ind=0;Q_ind<Q0_ind;Q_ind++) {
+//			lambda = lambdaQ[main_ind][Q_ind];
+//			mu = muQ[main_ind][Q_ind];
+//			//printstruct("lambda", &lambda);
+//			//printstruct("mu", &mu);
+//			fieldline.loc[0] = ext_centre[main_ind].loc[0]; fieldline.loc[1] = ext_centre[main_ind].loc[1];
+//			vecresult = multiply(fieldline.tangent, ext_centre[main_ind].eperp);
+//			sperp.loc[0] = vecresult[0]; sperp.loc[1] = vecresult[1];
+//			free(vecresult);
+//			//printf("sperp=%f\n", sperp.tangent[1][1]);
+//			//fieldline->tangent[0][0] = 1.0 ; fieldline->tangent[0][1] = 0.0;
+//			//fieldline->tangent[1][0] = 0.0 ; fieldline->tangent[0][1] = 1.0;
+//			for (i=0; i<N_line; i++)
+//			{
+//				if (i%N_gridphi_per_field_period==0)
+//				{
+//					centre_ind = i/N_gridphi_per_field_period;
+//					//printf("varphi = %f\n", varphi);
+//					//printstruct("Xp", &fieldline);
+//					//printf("number = %f\n", number[centre_ind]);
+//					//if (i/N_gridphi_per_field_period==0) lambda_centre->loc[0] += 1.0;
+//					//printstruct("lambda\n", lambda);
+//					//if (centre_ind==0) 
+//					//{
+//					//	printf("main_ind=%d, Q_ind=%d, centre_ind=%d\n", main_ind, Q_ind, centre_ind); 
+//					//	printf("number = %f\n", number[main_ind]);
+//					//	printstruct("mu", &mu);
+//					//	printstruct("lambda", &lambda);
+//					//}
+//					q_ind = Q_ind*L_fixedpoints + centre_ind;
+//					if ( q_ind >= q0_ind && q_ind < q0_ind + L_fixedpoints) {
+//						mu.loc[0] += (ext_centre[(main_ind+centre_ind)%L_fixedpoints].epar[0]);
+//						mu.loc[1] += (ext_centre[(main_ind+centre_ind)%L_fixedpoints].epar[1]);
+//					}
+//				}
+//				//RK4_adjtangent(&fieldline, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
+//				//RK4_adjgrad(number, &fieldline, &lambda, varphi, dvarphi, coils, n_coils, n_segs);
+//				RK4_adjgradtangent(number+main_ind, &fieldline, &lambda, &sperp, &mu, varphi, dvarphi, coils, n_coils, n_segs);
+//				varphi += dvarphi;
+//			}
+//		}
+//		//printf("varphi = %f\n", varphi);
+//		//printstruct("lambda", &lambda);
+//		//printstruct("Xp",&fieldline);
+//	}
+//	for (centre_ind=0; centre_ind<L_fixedpoints; centre_ind++) {
+//		printf("number = %f\n", number[centre_ind]);
+//	}
+//	return number;
+//}
 //can delete this eventually
 //struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int *n_coils, int **n_segs) {
 //	int i=0, L_fixedpoints;
