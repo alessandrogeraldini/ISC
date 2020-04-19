@@ -6,7 +6,7 @@
 #include "isc.h"
 #include <gsl/gsl_fit.h>
 
-void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int *n_coils, int **n_segs) {
+void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs) {
 	/* declarations */
 	clock_t initial_t = clock();
 	//int N_gridphi_per_field_period=20, field_periods=3; // now in separate file as defined constants
@@ -19,6 +19,7 @@ void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, 
 	double angle[number_field_periods*N_gridphi_per_field_period], phidata[number_field_periods*N_gridphi_per_field_period];
 	double c0=0.0, c1=0.0, cov00=0.0, cov01=0.0, cov11=0.0, sumsq=0.0;
 	double **evec=malloc(2*sizeof(double)), eval[2], det, trace, iota_axis;
+	struct field **Bfield_axis;
 	FILE *Poincare=NULL, *IOTA=NULL;
 	printf("field periods = %d\n", m0_symmetry);
 	printf("N points per field period = %d\n", N_gridphi_per_field_period);
@@ -33,7 +34,11 @@ void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, 
 	if ((IOTA = fopen("iota_file.txt", "w"))==NULL) printf("Could not open iota.txt\n");
 	/* find the magnetic axis */
 	if (include_centre == 1) {
-		fieldcentre = findcentre(coils, n_coils, n_segs, &startcentre, N_gridphi_tor);
+		Bfield_axis = malloc(N_gridphi_tor*sizeof(struct field));
+		for (ind=0; ind<N_gridphi_tor; ind++) {
+			Bfield_axis[ind] = malloc(4*sizeof(struct field));
+		}
+		fieldcentre = solve_magneticaxis(coils, n_coils, n_segs, Bfield_axis, &startcentre, N_gridphi_tor);
 		linalg2x2(startcentre.tangent, evec, eval, &det, &trace);
 		printf("evec=%f\n", evec[0][0]);
 		iota_axis = eval[1];
@@ -75,21 +80,16 @@ void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, 
 			phidata[i_periods*N_gridphi_per_field_period + i] = varphi;
 			//printf("%f\t%f\n", angle[i], phidata[i]);
 			angle_old = angle_round_axis;
-			RK4(Xp, varphi, dvarphi, coils, n_coils, n_segs);
-			//printstruct("fieldcentre", fieldcentre+i);
+			RK4step(Xp, varphi, dvarphi, coils, n_coils, n_segs, Bfield_axis[i]);
+			//printstructposition("fieldcentre", fieldcentre+i);
 			varphi += dvarphi;
 		}
 		}
-		printf("YOLO\n");
 		gsl_fit_linear(phidata, 1, angle, 1, number_field_periods*N_gridphi_per_field_period, &c0, &c1, &cov00, &cov01, &cov11, &sumsq);
 		//gsl_fit_linear(phidata, 1, angle, 1, 32768, &c0, &c1, &cov00, &cov01, &cov11, &sumsq);
-		printf("YOLO2\n");
 		iota[ind] = c1;
-		printf("YOLO3\n");
 		printf("\niota=%f\tintercept=%f\n", iota[ind], c0);
-		printf("YOLO4\n");
 		fprintf(IOTA, "%f %f\n", minor_radius[ind], iota[ind]);
-		printf("YOLO5\n");
 	}
 	fclose(Poincare);
 	fclose(IOTA);

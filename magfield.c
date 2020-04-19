@@ -10,16 +10,13 @@
 
 double ***coil_grid(int *num_coils, int **num_segs) {
 	clock_t start = clock();
-	int lenline = 1000, line_num, ii=0;
+	int lenline = 1000, line_num, row=0;
 	double *storevals;
 	char line[lenline];
 	int nn, max_num_segs, num_coils_temp=0, coil_index=0, coilseg_index=0, *num_segs_temp;
 	double ***XXvect_coil= NULL;
-	XXvect_coil = calloc(4,sizeof(double));
 	FILE *file_coils;
 
-	clock_t int1 = clock();
-	printf("Time after declarations: %f\n", (double) (int1-start)/CLOCKS_PER_SEC);
 	file_coils = fopen("coils.c09r00", "r");
 	if (file_coils == NULL)
 	{	
@@ -61,34 +58,32 @@ double ***coil_grid(int *num_coils, int **num_segs) {
 		}
 	}
 	printf("num_coils_temp = %d\n", num_coils_temp);
+	printf("max_num_segs = %d\n", max_num_segs);
 	coil_index = 0;
 	coilseg_index = 0;
 	XXvect_coil = calloc(num_coils_temp,sizeof(double));
-	for (ii=0;ii<4;ii+=1)
+	for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
 	{
-		XXvect_coil[ii] = calloc(num_coils_temp,sizeof(double));
-		for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
+		XXvect_coil[coil_index] = calloc(max_num_segs,sizeof(double));
+		for (coilseg_index = 0; coilseg_index < max_num_segs; coilseg_index ++)
 		{
-			XXvect_coil[ii][coil_index] = calloc(max_num_segs,sizeof(double));
+			XXvect_coil[coil_index][coilseg_index] = calloc(4,sizeof(double));
 		}
 	}
 	coil_index = 0;
+	coilseg_index = 0;
 	rewind(file_coils);
 	while (fgets(line, lenline, file_coils) != NULL)
 	{	
+		//printf("coil_index=%d/%d\n", coil_index, num_coils_temp-1);
 		storevals = linetodata(line, &nn);
-		if (nn > 3)
+		//printf("nn=%d\n", nn);
+		if (nn == 4)
 		{
-			//printf("hello world, number of coils = %d, coil_index = %d, coilseg_index = %d\n", num_coils, coil_index, coilseg_index);
-			XXvect_coil[0][coil_index][coilseg_index] = *storevals; 
-			XXvect_coil[1][coil_index][coilseg_index] = *(storevals+1);
-			XXvect_coil[2][coil_index][coilseg_index] = *(storevals+2);
-			XXvect_coil[3][coil_index][coilseg_index] = *(storevals+3);
-			//printf("coil_index=%d, coilseg_index = %d\n", coil_index, coilseg_index);
-			//printf("storevals[0] = %Le\n", *storevals);
-			//printf("storevals[1] = %Le\n", *(storevals+1));
-			//printf("storevals[2] = %Le\n", *(storevals+2));
-			//printf("storevals[3] = %Le\n", *(storevals+3));
+			//printf("coilseg_index=%d/%d\n", coilseg_index, max_num_segs-1);
+			for (row=0;row<4;row++) {
+				XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
+			}
 			coilseg_index += 1; 
 		}
 		if (nn > 4)
@@ -101,6 +96,11 @@ double ***coil_grid(int *num_coils, int **num_segs) {
 	fclose(file_coils);
 	*num_coils = num_coils_temp;
 	*num_segs = num_segs_temp;
+	//for (coil_index=0; coil_index< *num_coils; coil_index++) {
+	//	printf("%d\n", (*num_segs)[coil_index]);
+	//}
+	clock_t int2 = clock();
+	printf("Time out of coil module: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
 	return XXvect_coil;
 }
 		
@@ -277,7 +277,7 @@ struct field *gradBReim(int m0_symmetry, double iota0, double iota1, double *eps
 		return mag;
 }
 
-struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils, int **num_segs) {
+struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs) {
 	//clock_t start = clock();
 	/* below: declare B and gradB calculated with the old way */
 	//double BZ=0.0, BX=0.0, BY=0.0, BR=0.0, Bvarphi=0.0, dBXdR=0.0, dBYdR=0.0, dBZdR=0.0, dBXdZ=0.0, dBYdZ=0.0, dBZdZ=0.0, dBRdR=0.0, dBvarphidR=0.0, dBRdZ=0.0, dBvarphidZ=0.0;
@@ -296,12 +296,12 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	int check = 0, m0_symmetry = 1, row, col, dep;
 	//double XpdR, YpdR, RpdRminrc, XpdRminxc, YpdRminyc, BXpdR, BYpdR, BZpdR, 
 	double dR[2], dZ[2], delta = 0.0000001, dvarphi = 0.00001;
-	double Rminrcvect[3], drcvect[3], Rhat[3], Zhat[3], phihat[3], Bvect[3];
+	double Rminrcvect[3], drcvect[3], Rhat[3], Zhat[3], phihat[3], Bvect[3], current;
 	double gradB[3][2], gradgradB[3][2][2], object, gradBcheck[3][2], gradgradBcheck[3][2][2]; 
 	//double RpdZminrc, ZpdZminzc, BXpdZ, BYpdZ, BZpdZ;
 	double amp_Domm[1], epsilon[1], iota[2]; 
 	int pol_Domm[1], tor_Domm[1], k_theta[1];
-	char *type = "coil";
+	char *type = "Reim";
 	for (row=0;row<3;row++) {
 		Bvect[row] = 0.0; 
 		for (col=0;col<2;col++) {
@@ -313,34 +313,33 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 			}
 		}
 	}
-	//printf("n_segs[1]=%d\n", n_segs[1]);
+	//printf("n_segs[1]=%d\n", num_segs[1]); // print number of segments in second coil
 	//printf("Sanity check: print line of coil file\n");
-	//printf("coils[0][%d][%d]=%f\n", j, k, coils[0][j][k]); printf("coils[1][%d][%d]=%f\n", j, k, coils[1][j][k]);
-	//printf("coils[2][%d][%d]=%f\n", j, k, coils[2][j][k]); printf("coils[3][%d][%d]=%f\n", j, k, coils[3][j][k]);
-	//printf("Sanity check: print another line of coil file\n");
-	//printf("coils[0][0][1]=%Le\n", coils[0][0][1]); printf("coils[1][0][1]=%Le\n", coils[1][0][1]);
-	//printf("coils[2][0][1]=%Le\n", coils[2][0][1]); printf("coils[3][0][1]=%Le\n", coils[3][0][1]);
+	//printf("coils[0][0][0]=%Le\n", coils[0][0][0]); printf("coils[0][0][1]=%Le\n", coils[0][0][1]);
+	//printf("coils[0][0][2]=%Le\n", coils[0][0][2]); printf("coils[0][0][3]=%Le\n", coils[0][0][3]);
 	if (strncmp(type, "coil", 4) == 0) {
 		Rhat[0] = 1.0; Rhat[1] = 0.0; Rhat[2] = 0.0;
 		Zhat[0] = 0.0; Zhat[1] = 1.0; Zhat[2] = 0.0;
 		phihat[0] = 0.0; phihat[1] = 0.0; phihat[2] = 1.0;
-		for (coil_index=0;coil_index<*num_coils;coil_index++)
+		for (coil_index=0;coil_index<num_coils;coil_index++)
 		{
-			//printf("num_coils = %d\n", *num_coils);
+			//printf("num_coils = %d\n", num_coils);
 			//printf("coil_index = %d\n", coil_index);
-			for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
+			//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
+			for (coilseg_index=0;coilseg_index<num_segs[coil_index];coilseg_index++)
 			{
-				//printf("num_segs[%d] = %d\n", coil_index, *(*num_segs+coil_index));
+				//printf("num_segs[%d] = %d\n", coil_index, num_segs[coil_index]);
 				//printf("coilseg_index = %d\n", coilseg_index);
 				/* extract useful info */
-				Xminxc = XX - 0.5*coils[0][coil_index][coilseg_index] - 0.5*coils[0][coil_index][coilseg_index+1];
-				Yminyc = YY - 0.5*coils[1][coil_index][coilseg_index] - 0.5*coils[1][coil_index][coilseg_index+1]; 
-				Zminzc = ZZ - 0.5*coils[2][coil_index][coilseg_index] - 0.5*coils[2][coil_index][coilseg_index+1]; 
+				current = coils[coil_index][coilseg_index][3];
+				Xminxc = XX - 0.5*coils[coil_index][coilseg_index][0] - 0.5*coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][0];
+				Yminyc = YY - 0.5*coils[coil_index][coilseg_index][1] - 0.5*coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][1]; 
+				Zminzc = ZZ - 0.5*coils[coil_index][coilseg_index][2] - 0.5*coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][2]; 
 				Rminrc = sqrt(pow(Xminxc,  2.0) + pow(Yminyc, 2.0) + pow(Zminzc, 2.0)); 
 
-				dxc = coils[0][coil_index][coilseg_index+1] - coils[0][coil_index][coilseg_index];
-				dyc = coils[1][coil_index][coilseg_index+1] - coils[1][coil_index][coilseg_index];
-				dzc = coils[2][coil_index][coilseg_index+1] - coils[2][coil_index][coilseg_index];
+				dxc = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][0] - coils[coil_index][coilseg_index][0];
+				dyc = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][1] - coils[coil_index][coilseg_index][1];
+				dzc = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][2] - coils[coil_index][coilseg_index][2];
 
 				/* project into cartesian axes aligned with local poloidal plane 
 				Rhat dot (phihat cross Zhat) = 1 prescription -> (R,phi,Z) right-handed */
@@ -352,43 +351,43 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 				drcvect[2] = - sin(varphi)*dxc + cos(varphi)*dyc; 
 
 				/* below: old way to calculate B and grad B (can soon cancel it) */
-				//BX += (coils[3][coil_index][coilseg_index]*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 3.0));
-				//BY += (coils[3][coil_index][coilseg_index]*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 3.0));
-				//BZ += (coils[3][coil_index][coilseg_index]*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 3.0));
+				//BX += (current*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 3.0));
+				//BY += (current*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 3.0));
+				//BZ += (current*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 3.0));
 
 				//
-				//dBXdR += (coils[3][coil_index][coilseg_index]*(dyc*0.0         - dzc*sin(varphi))/pow(Rminrc, 3.0));
-				//dBYdR += (coils[3][coil_index][coilseg_index]*(dzc*cos(varphi) - dxc*0.0        )/pow(Rminrc, 3.0));
-				//dBZdR += (coils[3][coil_index][coilseg_index]*(dxc*sin(varphi) - dyc*cos(varphi))/pow(Rminrc, 3.0));
+				//dBXdR += (current*(dyc*0.0         - dzc*sin(varphi))/pow(Rminrc, 3.0));
+				//dBYdR += (current*(dzc*cos(varphi) - dxc*0.0        )/pow(Rminrc, 3.0));
+				//dBZdR += (current*(dxc*sin(varphi) - dyc*cos(varphi))/pow(Rminrc, 3.0));
 
-				//dBXdR -= 3*(coils[3][coil_index][coilseg_index]*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 5.0));
-				//dBYdR -= 3*(coils[3][coil_index][coilseg_index]*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 5.0));
-				//dBZdR -= 3*(coils[3][coil_index][coilseg_index]*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 5.0));
+				//dBXdR -= 3*(current*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 5.0));
+				//dBYdR -= 3*(current*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 5.0));
+				//dBZdR -= 3*(current*(Xminxc*cos(varphi) + Yminyc*sin(varphi))*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 5.0));
 
-				//dBXdZ += (coils[3][coil_index][coilseg_index]*( dyc)/pow(Rminrc, 3.0));
-				//dBYdZ += (coils[3][coil_index][coilseg_index]*(-dxc)/pow(Rminrc, 3.0));
+				//dBXdZ += (current*( dyc)/pow(Rminrc, 3.0));
+				//dBYdZ += (current*(-dxc)/pow(Rminrc, 3.0));
 
-				//dBXdZ -= 3*(coils[3][coil_index][coilseg_index]*(Zminzc)*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 5.0));
-				//dBYdZ -= 3*(coils[3][coil_index][coilseg_index]*(Zminzc)*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 5.0));
-				//dBZdZ -= 3*(coils[3][coil_index][coilseg_index]*(Zminzc)*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 5.0));
+				//dBXdZ -= 3*(current*(Zminzc)*(dyc*Zminzc - dzc*Yminyc)/pow(Rminrc, 5.0));
+				//dBYdZ -= 3*(current*(Zminzc)*(dzc*Xminxc - dxc*Zminzc)/pow(Rminrc, 5.0));
+				//dBZdZ -= 3*(current*(Zminzc)*(dxc*Yminyc - dyc*Xminxc)/pow(Rminrc, 5.0));
 				// above: old way to calculate B and grad B (can soon cancel it)
 
 				for (row=0;row<3;row++) {
-					Bvect[row] +=  pow(10.0,-7.0) * ( coils[3][coil_index][coilseg_index] / pow(Rminrc, 3.0) ) * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
+					Bvect[row] +=  pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
 					for (col=0;col<2;col++) {
-						gradB[row][col] += ( pow(10.0,-7.0) * ( coils[3][coil_index][coilseg_index] / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
+						gradB[row][col] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
 						for (dep=0; dep<2; dep++) {
 							object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
 							object += 3.0 * Rminrcvect[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
 							object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
 							object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
-							gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( coils[3][coil_index][coilseg_index] / pow(Rminrc, 5.0) ) * object ) ;
+							gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
 						}
 					}
 				}
 				
 //				for (col=0;col<2;col++) {
-//					gradB[2][col] += ( pow(10.0,-7.0) * coils[3][coil_index][coilseg_index] * ( - 3.0 * Rminrcvect[col] * ( - drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) / pow(Rminrc, 5.0) + ( drcvect[1] * Rhat[col] - drcvect[0] * Zhat[col] ) / pow(Rminrc, 3.0) ) ) ; 
+//					gradB[2][col] += ( pow(10.0,-7.0) * current * ( - 3.0 * Rminrcvect[col] * ( - drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) / pow(Rminrc, 5.0) + ( drcvect[1] * Rhat[col] - drcvect[0] * Zhat[col] ) / pow(Rminrc, 3.0) ) ) ; 
 //				}
 //
 				if (check==1) {
@@ -407,9 +406,9 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 						Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
 						Rminrc = pow(pow(Rminrcvect[0], 2.0) + pow(Rminrcvect[1], 2.0) + pow(Rminrcvect[2], 2.0), 0.5);
 						for (row=0;row<3;row++) {
-							gradBcheck[row][dep] +=  pow(10.0,-7.0) * ( coils[3][coil_index][coilseg_index] / pow(Rminrc, 3.0) ) * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
+							gradBcheck[row][dep] +=  pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
 							for (col=0;col<2;col++) {
-								gradgradBcheck[row][col][dep] += ( pow(10.0,-7.0) * ( coils[3][coil_index][coilseg_index] / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
+								gradgradBcheck[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
 							}
 						}
 					}
@@ -484,7 +483,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	//clock_t int3 = clock();
 	//printf("Time after evaluating B field at a point: %f\n", (double) (int3-start)/CLOCKS_PER_SEC);
 	else if (strncmp(type, "Reim", 4) == 0) {
-		epsilon[0] = 0.1; //epsilon[1] = 0.0;
+		epsilon[0] = 0.001*(1.0+0.0000); //epsilon[1] = 0.0;
 		//epsilon[0] = 0.0; epsilon[1] = 0.0;
 		k_theta[0] = 6; //k_theta[1] = 3;
 		//epsilon[0] = 0.00; epsilon[1] = 0.00;
@@ -594,16 +593,110 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int *num_coils,
 	return magfield;
 }
 
-struct field *gradBfield(double *Xp, double varphi, double ***coils, int *num_coils, int **num_segs) {
+double delta(int wantszero) {
+	double answer;
+	if (wantszero == 0) answer = 1.0;
+	else answer = 0.0;
+	return answer;
+}
+
+struct field *gradBfield(double *Xp, double varphi, double *param) {
+	int row, col, dep;
+	double Rminrc, Rminrcvect[3], *coilseg=malloc(3*sizeof(double)), current;
+	double epsilon[1], iota[2];
 	struct field *gradmagfield = calloc(1,sizeof(struct field));
 	int m0_symmetry = 1;
-	double epsilon[1], iota[2]; 
 	int k_theta[1];
-	epsilon[0] = 0.1; 
-	//epsilon[0] = 0.0; epsilon[1] = 0.0;
-	k_theta[0] = 6; 
-	//epsilon[0] = 0.00; epsilon[1] = 0.00;
-	iota[0] = 0.15; iota[1] = 0.38;
-	gradmagfield = gradBReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
+	char *type = "Reim";
+	if (strncmp(type, "Reim", 4) == 0) {
+		epsilon[0] = 0.001; 
+		//epsilon[0] = 0.0; epsilon[1] = 0.0;
+		k_theta[0] = 6; 
+		//epsilon[0] = 0.00; epsilon[1] = 0.00;
+		iota[0] = 0.15; iota[1] = 0.38;
+		gradmagfield = gradBReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
+	}
+	else if (strncmp(type, "coil", 4) == 0) {
+		gradmagfield = malloc(3*sizeof(struct field));
+		coilseg = param;
+		current = param[4];
+		Rminrc = 0.0;
+		for (row=0;row<3;row++) {
+			Rminrcvect[row] = Xp[row] - coilseg[row];
+			Rminrc += pow(Rminrcvect[row], 2.0);
+		}
+		Rminrc = pow(Rminrc, 0.5);
+		for (row=0;row<3;row++) {
+			for (col=0; col<3; col++) {
+				gradmagfield[row].value[col] 
+				= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+				for (dep=0; dep<2;dep++) {
+					gradmagfield[row].derivative[col][dep] 
+					= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+				}
+			}
+		}
+	}
 	return gradmagfield;
+}
+
+struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs) {
+	int coil_index, coilseg_index, row, col, dep;
+	struct field ***shapefield = malloc(num_coils*sizeof(struct field));
+	double Rminrc, Rminrcvect[3], current;
+
+	for (coil_index=0;coil_index< num_coils;coil_index++) {
+		shapefield[coil_index] = malloc(num_segs[coil_index]*sizeof(struct field));
+		for (coilseg_index=0; coilseg_index < num_segs[coil_index]; coilseg_index++) {
+			shapefield[coil_index][coilseg_index] = malloc(3*sizeof(struct field));
+			current = coils[coil_index][coilseg_index][3]; 
+			Rminrc = 0.0;
+			for (row=0;row<3;row++) {
+				Rminrcvect[row] = Xp[row] - coils[coil_index][coilseg_index][row];
+				Rminrc += pow(Rminrcvect[row], 2.0);
+			}
+			Rminrc = pow(Rminrc, 0.5);
+			for (row=0;row<3;row++) {
+				for (col=0; col<3; col++) {
+					shapefield[coil_index][coilseg_index][row].value[col] 
+					= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+					for (dep=0; dep<2;dep++) {
+						shapefield[coil_index][coilseg_index][row].derivative[col][dep] 
+						= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+					}
+				}
+			}
+		}
+	}
+	return shapefield;
+}
+
+struct field *gradBfield_coils(double *Xp, double varphi, double *coilseg) {
+	struct field *shapefield = malloc(3*sizeof(struct field));
+	int row, col, dep;
+	double Rminrc, Rminrcvect[3], current = coilseg[3];
+	Rminrc = 0.0;
+
+	// what follows is still incorrect:
+	// need to convert this shape gradient to take into account geometry: I want gradient of BR, BZ, Bvarphi
+	// with respect to coil perturbations in the x, y, and z directions
+	// need to write these expressions down
+
+	for (row=0;row<3;row++) {
+		// wrong, modify
+		Rminrcvect[row] = Xp[row] - coilseg[row];
+		Rminrc += pow(Rminrcvect[row], 2.0);
+	}
+	Rminrc = pow(Rminrc, 0.5);
+	for (row=0;row<3;row++) {
+		for (col=0; col<3; col++) {
+			shapefield[row].value[col] 
+			= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+			for (dep=0; dep<2;dep++) {
+				shapefield[row].derivative[col][dep] 
+				= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+			}
+		}
+	}
+	return shapefield;
 }
