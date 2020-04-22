@@ -1,3 +1,5 @@
+# Note: -g adds debug symbols.
+
 MAG: main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
 	cc -O2 -Wall -ffast-math -lgsl -o MAG main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
 
