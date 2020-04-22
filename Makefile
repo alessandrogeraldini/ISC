@@ -1,7 +1,12 @@
-#EXTRA_COMPILE_FLAGS = -g -O2 -Wall -I /opt/local/include/gsl
-EXTRA_COMPILE_FLAGS = -g -O2 -Wall -I /opt/local/include
+# Makefile for ISC
+# Note: -g adds debug symbols.
 
+# Alessandro's laptop:
+EXTRA_COMPILE_FLAGS = -g -O2 -Wall -I /opt/local/include/gsl
 EXTRA_LINK_FLAGS = -Wall -ffast-math -lgsl
+
+#EXTRA_COMPILE_FLAGS = -g -O2 -Wall -I /opt/local/include
+#EXTRA_LINK_FLAGS = -Wall -ffast-math -L /opt/local/lib -lgsl
 
 MAG: main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
 	cc $(EXTRA_LINK_FLAGS) -o MAG main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
