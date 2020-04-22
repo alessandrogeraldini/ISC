@@ -1,3 +1,4 @@
+# Makefile for ISC
 # Note: -g adds debug symbols.
 
 MAG: main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
