@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "linetodata.h"
+//#include "linetodata.h"
+#include "isc.h"
 #define LEN 200
 
 
