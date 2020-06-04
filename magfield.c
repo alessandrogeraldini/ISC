@@ -602,13 +602,14 @@ double delta(int wantszero) {
 
 struct field *gradBfield(double *Xp, double varphi, double *param) {
 	int row, col, dep;
-	double Rminrc, Rminrcvect[3], *coilseg=malloc(3*sizeof(double)), current;
-	double epsilon[1], iota[2];
-	struct field *gradmagfield = calloc(1,sizeof(struct field));
+	double Rminrc, Rminrcvectp[3], Rminrcvectx[3], Rvectp[3], rvectp[3], *coilseg, current;
+	double epsilon[1], iota[2], rotation[3][3];
+	struct field *gradmagfield;
 	int m0_symmetry = 1;
 	int k_theta[1];
 	char *type = "Reim";
 	if (strncmp(type, "Reim", 4) == 0) {
+		gradmagfield = calloc(1,sizeof(struct field));
 		epsilon[0] = 0.001; 
 		//epsilon[0] = 0.0; epsilon[1] = 0.0;
 		k_theta[0] = 6; 
@@ -621,18 +622,34 @@ struct field *gradBfield(double *Xp, double varphi, double *param) {
 		coilseg = param;
 		current = param[4];
 		Rminrc = 0.0;
+		rvectp[0] = coilseg[0]*cos(varphi) + coilseg[1]*sin(varphi);
+		rvectp[1] = coilseg[2];
+		rvectp[2] = coilseg[1]*cos(varphi) - coilseg[0]*sin(varphi);
+		Rvectp[0] = Xp[0];
+		Rvectp[1] = Xp[1];
+		Rvectp[2] = 0.0;  // coordinate defined in locally cartesian plane at point
+		rotation[0][0] = rotation[1][2] = cos(varphi); 		
+		rotation[1][0] =  sin(varphi); 		
+		rotation[0][2] = -sin(varphi); 		
+		rotation[2][1] = 1.0;
+		rotation[2][0] = rotation[0][1] = rotation[2][2] = rotation[1][1] = 0.0;
 		for (row=0;row<3;row++) {
-			Rminrcvect[row] = Xp[row] - coilseg[row];
-			Rminrc += pow(Rminrcvect[row], 2.0);
+			Rminrcvectp[row] = Rvectp[row] - rvectp[row];
+			Rminrc += pow(Rminrcvectp[row], 2.0);
+		}
+		for (row=0;row<3;row++) {
+			Rminrcvectx[row] = rotation[row][0]*Rminrcvectp[0] + rotation[row][1]*Rminrcvectp[1] + rotation[row][2]*Rminrcvectp[2];
 		}
 		Rminrc = pow(Rminrc, 0.5);
 		for (row=0;row<3;row++) {
 			for (col=0; col<3; col++) {
 				gradmagfield[row].value[col] 
-				= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+				= (current/pow(Rminrc, 3.0))*( - rotation[row][col] + Rminrcvectx[row] * Rminrcvectp[col] / pow(Rminrc, 2.0) );			
+				//printf("current=%f, Rminrc=%f, Rminrcvectp=%f, Rminrcvectx=%f, rotation=%f\n", current, Rminrc, Rminrcvectp[col], Rminrcvectx[row], rotation[row][col]);
+				//printf("grad=%f\n", gradmagfield[row].value[col]);
 				for (dep=0; dep<2;dep++) {
 					gradmagfield[row].derivative[col][dep] 
-					= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+					= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvectp[dep]*( rotation[row][col] - 5.0 *Rminrcvectp[row] *Rminrcvectp[col] / pow(Rminrc, 2.0) ) + 3.0 *delta(dep - col) *Rminrcvectp[row] + 3.0 * rotation[row][dep] *Rminrcvectp[col] ) ;	
 				}
 			}
 		}
@@ -671,32 +688,32 @@ struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_
 	return shapefield;
 }
 
-struct field *gradBfield_coils(double *Xp, double varphi, double *coilseg) {
-	struct field *shapefield = malloc(3*sizeof(struct field));
-	int row, col, dep;
-	double Rminrc, Rminrcvect[3], current = coilseg[3];
-	Rminrc = 0.0;
-
-	// what follows is still incorrect:
-	// need to convert this shape gradient to take into account geometry: I want gradient of BR, BZ, Bvarphi
-	// with respect to coil perturbations in the x, y, and z directions
-	// need to write these expressions down
-
-	for (row=0;row<3;row++) {
-		// wrong, modify
-		Rminrcvect[row] = Xp[row] - coilseg[row];
-		Rminrc += pow(Rminrcvect[row], 2.0);
-	}
-	Rminrc = pow(Rminrc, 0.5);
-	for (row=0;row<3;row++) {
-		for (col=0; col<3; col++) {
-			shapefield[row].value[col] 
-			= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
-			for (dep=0; dep<2;dep++) {
-				shapefield[row].derivative[col][dep] 
-				= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
-			}
-		}
-	}
-	return shapefield;
-}
+//struct field *gradBfield_coils(double *Xp, double varphi, double *coilseg) {
+//	struct field *shapefield = malloc(3*sizeof(struct field));
+//	int row, col, dep;
+//	double Rminrc, Rminrcvect[3], current = coilseg[3];
+//	Rminrc = 0.0;
+//
+//	// what follows is still incorrect:
+//	// need to convert this shape gradient to take into account geometry: I want gradient of BR, BZ, Bvarphi
+//	// with respect to coil perturbations in the x, y, and z directions
+//	// need to write these expressions down
+//
+//	for (row=0;row<3;row++) {
+//		// wrong, modify
+//		Rminrcvect[row] = Xp[row] - coilseg[row];
+//		Rminrc += pow(Rminrcvect[row], 2.0);
+//	}
+//	Rminrc = pow(Rminrc, 0.5);
+//	for (row=0;row<3;row++) {
+//		for (col=0; col<3; col++) {
+//			shapefield[row].value[col] 
+//			= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+//			for (dep=0; dep<2;dep++) {
+//				shapefield[row].derivative[col][dep] 
+//				= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+//			}
+//		}
+//	}
+//	return shapefield;
+//}

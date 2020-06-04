@@ -127,11 +127,11 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
    follows adjoint variable of field line position with additional constraint from tangent map 
    includes only homogeneous terms (linear in mu or lambda), jumps from source terms taken care of separately */
 
-void RK4step_gradcirc(double *number, struct position *centre, struct position *lambda_circ, double varphi, double dvarphi, struct field *Bfieldsaved, double *param);
+void RK4step_gradcirc(double *number, struct position *centre, struct position *lambda_circ, double varphi, double dvarphi, struct field *Bfieldsaved, double *param, int num_params);
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line circumference, tangent map (eventually), and island width (eventually) */
 
-void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved) ;
+void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, double *param, int num_params) ;
 
 void RK4_adjshapecirc(double ***shapecirc, struct position *Xp, struct position *lambda, double varphi, double dvarphi, double ***coils, int num_coils, int *num_segs);
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
@@ -152,7 +152,7 @@ struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis,
 double *calc_islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode, int N_gridphi_fieldperiod);
 /* evaluates island width */
 
-double *islandwidthnew(struct field **Bfield_saved, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_fieldperiods, int N_polmode, int L_fixedpoints, int N_gridphi_fieldperiod, double *param) ;
+double *islandwidthnew(struct field **Bfield_saved, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_fieldperiods, int N_polmode, int L_fixedpoints, int N_gridphi_fieldperiod, double *param, int num_params) ;
 
 struct position solve_lambda_circ(struct ext_position *ext_centre, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod);
 /* finds the periodic adjoint solution lambda (its initial value) that constrains the field line to be periodic */
@@ -163,10 +163,10 @@ struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_p
 /* finds the adjoint solutions that constrain the field line to be periodic (lambdaQ) 
    and constrain the initial tangent map variation to be zero (mu) */
 
-double *solve_gradcirc(struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, double *param) ;
+void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, double *param, int num_params) ;
 /* evaluates gradient of circumference */
 
-double *solve_gradtangent(struct field **Bfield_island, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, double *param);
+void solve_gradtangent(double **gradtangent, struct field **Bfield_island, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, double *param, int num_params);
 /* evaluates gradient of Sigma (sum of tangent map matrix elements) */
 
 

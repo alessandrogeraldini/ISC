@@ -1,3 +1,6 @@
 *.o
 MAG
 *~
+*coils.c09r00
+shape_circ.txt
+shape_tan.txt
