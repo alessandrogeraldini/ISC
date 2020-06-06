@@ -216,7 +216,11 @@ struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis,
 			//	angle_axis[centre_ind%L_fixedpoints] -= M_PI;	
 			//}
 			//angle_axis[centre_ind%L_fixedpoints] = atan2(fieldline.loc[1] - axis[1], fieldline.loc[0] - axis[0]) - ref_angle;
+			printf("i=%d/%d\n", i, N_line);
+			printf("i=%d/%d\n", i, N_line);
+			printstructposition("centre", centre + ( (centre_ind-1) % L_fixedpoints ) );
 			inverted = invert2x2(centre[(centre_ind-1) % L_fixedpoints].tangent, &detcentre);
+			printf("i=%d/%d\n", i, N_line);
 			adjinverted = invert2x2(adjcentre[(centre_ind-1) % L_fixedpoints].tangent, &adjdetcentre);
 			//printmat("inverted", inverted, 2, 2);
 			//ptarray[0] = &centre[centre_ind % L_fixedpoints].tangent[0][0];
@@ -227,6 +231,8 @@ struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis,
 			ext_centre[centre_ind % L_fixedpoints].adj_part_tangent = multiply2x2(adjcentre[centre_ind % L_fixedpoints].tangent, adjinverted, 2);
 			phidata[centre_ind % L_fixedpoints] = varphi;
 			//printmat("ext_centre.part_tangent", ext_centre[centre_ind % L_fixedpoints].part_tangent, 2, 2);
+			free(inverted[0]); free(inverted[1]);
+			free(inverted);
 		}
 	}
 	gsl_fit_linear(phidata, 1, angle_axis, 1, L_fixedpoints, &c0, &c1, &cov00, &cov01, &cov11, &sumsq);
@@ -482,7 +488,7 @@ double *islandwidthnew(struct field **Bfield_saved, struct ext_position *ext_cen
 	return width;
 }
 
-double *calc_islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode, int N_gridphi_fieldperiod) {
+double *calc_islandwidth(double *circ, double *Sigma, struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode, int N_gridphi_fieldperiod) {
 	int main_index, centre_index;
 	double *wperp, sum_matrix_elements, matrix_element;
 	double circumference2=ext_fieldline[0].circumference, circumference;
@@ -518,6 +524,8 @@ double *calc_islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, in
 		printf("sum_matrix_elements_oldway = %f\n", sum_matrix_elements_oldway);
 		wperp[main_index] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
 		printf("width = %f for index= %d\n", wperp[main_index], main_index);
+		Sigma[main_index] = sum_matrix_elements;
+		*circ = circumference;
 	}
 	return wperp;
 }
@@ -847,6 +855,7 @@ struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_p
 				//printstructposition("deltalambda", &deltalambda);
 				//printstructposition("lambdaQ", lambda[main_ind]+Q_ind);
 				//printstructposition("lambdavar", &lambdavar);
+				//printf("this above should always be the identity\n");
 				inverseTminusI = invert2x2(deltalambda.tangent, &det_tangent);
 				inverseT = invert2x2(lambdain.tangent, &det_tangent);
 				//printf("det(tangent)=%f\n", det_tangent);

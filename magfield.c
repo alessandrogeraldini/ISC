@@ -301,7 +301,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 	//double RpdZminrc, ZpdZminzc, BXpdZ, BYpdZ, BZpdZ;
 	double amp_Domm[1], epsilon[1], iota[2]; 
 	int pol_Domm[1], tor_Domm[1], k_theta[1];
-	char *type = "Reim";
+	char *type = "coil";
 	for (row=0;row<3;row++) {
 		Bvect[row] = 0.0; 
 		for (col=0;col<2;col++) {
@@ -607,9 +607,9 @@ struct field *gradBfield(double *Xp, double varphi, double *param) {
 	struct field *gradmagfield;
 	int m0_symmetry = 1;
 	int k_theta[1];
-	char *type = "Reim";
+	char *type = "coil";
 	if (strncmp(type, "Reim", 4) == 0) {
-		gradmagfield = calloc(1,sizeof(struct field));
+		//gradmagfield = calloc(1,sizeof(struct field)); // allocated in gradBReim
 		epsilon[0] = 0.001; 
 		//epsilon[0] = 0.0; epsilon[1] = 0.0;
 		k_theta[0] = 6; 
@@ -657,36 +657,36 @@ struct field *gradBfield(double *Xp, double varphi, double *param) {
 	return gradmagfield;
 }
 
-struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs) {
-	int coil_index, coilseg_index, row, col, dep;
-	struct field ***shapefield = malloc(num_coils*sizeof(struct field));
-	double Rminrc, Rminrcvect[3], current;
-
-	for (coil_index=0;coil_index< num_coils;coil_index++) {
-		shapefield[coil_index] = malloc(num_segs[coil_index]*sizeof(struct field));
-		for (coilseg_index=0; coilseg_index < num_segs[coil_index]; coilseg_index++) {
-			shapefield[coil_index][coilseg_index] = malloc(3*sizeof(struct field));
-			current = coils[coil_index][coilseg_index][3]; 
-			Rminrc = 0.0;
-			for (row=0;row<3;row++) {
-				Rminrcvect[row] = Xp[row] - coils[coil_index][coilseg_index][row];
-				Rminrc += pow(Rminrcvect[row], 2.0);
-			}
-			Rminrc = pow(Rminrc, 0.5);
-			for (row=0;row<3;row++) {
-				for (col=0; col<3; col++) {
-					shapefield[coil_index][coilseg_index][row].value[col] 
-					= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
-					for (dep=0; dep<2;dep++) {
-						shapefield[coil_index][coilseg_index][row].derivative[col][dep] 
-						= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
-					}
-				}
-			}
-		}
-	}
-	return shapefield;
-}
+//struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs) {
+//	int coil_index, coilseg_index, row, col, dep;
+//	struct field ***shapefield = malloc(num_coils*sizeof(struct field));
+//	double Rminrc, Rminrcvect[3], current;
+//
+//	for (coil_index=0;coil_index< num_coils;coil_index++) {
+//		shapefield[coil_index] = malloc(num_segs[coil_index]*sizeof(struct field));
+//		for (coilseg_index=0; coilseg_index < num_segs[coil_index]; coilseg_index++) {
+//			shapefield[coil_index][coilseg_index] = malloc(3*sizeof(struct field));
+//			current = coils[coil_index][coilseg_index][3]; 
+//			Rminrc = 0.0;
+//			for (row=0;row<3;row++) {
+//				Rminrcvect[row] = Xp[row] - coils[coil_index][coilseg_index][row];
+//				Rminrc += pow(Rminrcvect[row], 2.0);
+//			}
+//			Rminrc = pow(Rminrc, 0.5);
+//			for (row=0;row<3;row++) {
+//				for (col=0; col<3; col++) {
+//					shapefield[coil_index][coilseg_index][row].value[col] 
+//					= pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( -delta(row-col) + Rminrcvect[row] * Rminrcvect[col] / pow(Rminrc, 2.0) );			
+//					for (dep=0; dep<2;dep++) {
+//						shapefield[coil_index][coilseg_index][row].derivative[col][dep] 
+//						= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvect[dep]*(delta(row-col) - 5.0 *Rminrcvect[row] *Rminrcvect[col] / pow(Rminrc, 2.0)) + 3.0 *delta(dep - col) *Rminrcvect[row] + 3.0 *delta(row-dep) *Rminrcvect[col] ) ;	
+//					}
+//				}
+//			}
+//		}
+//	}
+//	return shapefield;
+//}
 
 //struct field *gradBfield_coils(double *Xp, double varphi, double *coilseg) {
 //	struct field *shapefield = malloc(3*sizeof(struct field));

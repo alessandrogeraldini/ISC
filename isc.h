@@ -97,7 +97,7 @@ struct position addstructs(double num1, struct position *struct1, double num2, s
 
 struct field addstructsfield(double num1, struct field *struct1, double num2, struct field *struct2);
 
-double ***coil_grid();
+double ***coil_grid(int *n_coils, int **n_segs);
 /* forms an array with the coil information
    the array can be fed into the function Bfield
    to evaluate the magnetic field structure at each point */
@@ -108,7 +108,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 struct field *gradBfield(double *Xp, double varphi, double *param);
 /* magnetic field (eventually shape) gradient evaluation at each point Xp->loc */
 
-struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs);
+//struct field ***shapeBfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs);
 
 struct field *DommBfield(int N_modes, double *amp, int *tor_mode, int *pol_mode, double R, double Z, double phi); 
 /* magnetic field evaluation using Dommaschk potentials */
@@ -149,7 +149,7 @@ struct position *solve_islandcenter(double ***coils, int n_coils, int *n_segs, s
 struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis, int *n_turns, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, struct field **Bfield_saved);
 /* evaluates all quantities necessary to calculate the island width */
 
-double *calc_islandwidth(struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode, int N_gridphi_fieldperiod);
+double *calc_islandwidth(double *circ, double *Sigma, struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode, int N_gridphi_fieldperiod);
 /* evaluates island width */
 
 double *islandwidthnew(struct field **Bfield_saved, struct ext_position *ext_centre, struct position *lambda_circ, struct position **lambda_tangent, struct position **mu_tangent, int m0_fieldperiods, int N_polmode, int L_fixedpoints, int N_gridphi_fieldperiod, double *param, int num_params) ;
