@@ -5,101 +5,169 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include "isc.h"
 #include <string.h>
+#include <ctype.h>
+#include "isc.h"
 
-double ***coil_grid(int *num_coils, int **num_segs) {
+double ***fieldparams(char *type, int *m0_symmetry, int *num_params, int **num_params2) {
 	clock_t start = clock();
-	int lenline = 1000, line_num, row=0;
+	int n_params, *n_constparams, lenline = 1000, row=0, rowst=0, ctr = 0;
 	double *storevals;
-	char line[lenline];
+	char line[lenline], m0str;
 	int nn, max_num_segs, num_coils_temp=0, coil_index=0, coilseg_index=0, *num_segs_temp;
 	double ***XXvect_coil= NULL;
-	FILE *file_coils;
+	FILE *file_field;
 
-	file_coils = fopen("coils.c09r00", "r");
-	if (file_coils == NULL)
-	{	
-		printf("Cannot open coils.c09r00\n");
+	file_field = fopen("magfieldparams.txt", "r");
+	if (file_field == NULL) {	
+		printf("Cannot open magfieldparams.txt\n");
 		exit(1);
 	}
-	line_num = 0;
-	while (fgets(line, lenline, file_coils) != NULL)
-	{	
-		line_num += 1;
-		storevals = linetodata(line, &nn);
-		if (nn > 4)
-		{
-			coil_index += 1;
+	while (fgets(line, lenline, file_field) != NULL) {	
+		if (strncmp(line, "type", 4) == 0) {
+			row = 4;
+			while (line[row] == 32) {
+				row++;
+			}
+			rowst = row;
+			printf("%s\n", line);
+			printf("%s\n", type);
+			while (line[row] != 10) {
+				type[row-rowst] = line[row];
+				row++;
+			}
+		}
+		else if (strncmp(line, "periods", 7) == 0) {
+			row = 7;
+			while (line[row] == 32) {
+				row++;
+			}
+			m0str = line[row];
+			sscanf(&m0str, "%d", m0_symmetry);
+		}
+		else {
+			if ( strncmp(type, "coil", 4) == 0 ) {
+				storevals = linetodata(line, &nn);
+				n_params = 4;
+				if (nn > n_params)
+				{
+					coil_index += 1;
+				}
+			}
+			else if ( strncmp(type, "Reim", 4) == 0 ) {
+				storevals = linetodata(line, &nn);
+				printf("%s\n", line);
+				printf("coil_index=%d\n", coil_index);
+				if ( strncmp(line, "const", 5) == 0 ) {
+					ctr = 0;
+					n_constparams = malloc((nn-1)*sizeof(int));
+					row= 5;
+					while (line[row] != '\n') {
+						printf("line[row]=%c\n", line[row]);
+						while  (line[row] == 32) {
+							row++;
+						}
+						sscanf(line+row, "%d", n_constparams+ctr);
+						row++;
+						ctr++;
+					}
+				}
+				if (isdigit(line[0]) != 0) {
+					coil_index += 1;
+					n_params = nn;
+					XXvect_coil = calloc(1,sizeof(double));
+					*XXvect_coil = calloc(1,sizeof(double));
+					**XXvect_coil = calloc(n_params,sizeof(double));
+					for (row=0;row<n_params;row++) {
+						XXvect_coil[0][0][row] = *(storevals+row); 
+						printf("storevals= %f\n", *(storevals+row));
+					}
+				}
+			}
 		}
 	}
-	rewind(file_coils);
+	rewind(file_field);
 	num_coils_temp = coil_index;
 	num_segs_temp = calloc(coil_index,sizeof(int));
-	*num_segs = calloc(coil_index,sizeof(int));
 	max_num_segs = 0;
 	coil_index = 0;
-	while (fgets(line, lenline, file_coils) != NULL)
-	{	
-		storevals = linetodata(line, &nn);
-		if (nn == 4)
-		{
-			coilseg_index += 1; 
-		}
-		else if (nn > 4)
-		{
-			num_segs_temp[coil_index] = coilseg_index;
-			coil_index += 1;
-			if (coilseg_index > max_num_segs)
+	if (strncmp(type, "coil", 4) == 0) {
+		*num_params2 = calloc(coil_index,sizeof(int));
+		while (fgets(line, lenline, file_field) != NULL)
+		{	
+			storevals = linetodata(line, &nn);
+			if (nn == 4)
 			{
-				max_num_segs = coilseg_index;
+				coilseg_index += 1; 
 			}
-			coilseg_index = 0;
+			else if (nn > 4)
+			{
+				num_segs_temp[coil_index] = coilseg_index;
+				coil_index += 1;
+				if (coilseg_index > max_num_segs)
+				{
+					max_num_segs = coilseg_index;
+				}
+				coilseg_index = 0;
+			}
 		}
+	}
+	else {
+		max_num_segs = 1;
+		*num_params2 = n_constparams;
 	}
 	printf("num_coils_temp = %d\n", num_coils_temp);
 	printf("max_num_segs = %d\n", max_num_segs);
-	coil_index = 0;
-	coilseg_index = 0;
-	XXvect_coil = calloc(num_coils_temp,sizeof(double));
-	for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
-	{
-		XXvect_coil[coil_index] = calloc(max_num_segs,sizeof(double));
-		for (coilseg_index = 0; coilseg_index < max_num_segs; coilseg_index ++)
+	if (strncmp(type, "coil", 4) == 0) {
+		coil_index = 0;
+		coilseg_index = 0;
+		XXvect_coil = calloc(num_coils_temp,sizeof(double));
+		for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
 		{
-			XXvect_coil[coil_index][coilseg_index] = calloc(4,sizeof(double));
-		}
-	}
-	coil_index = 0;
-	coilseg_index = 0;
-	rewind(file_coils);
-	while (fgets(line, lenline, file_coils) != NULL)
-	{	
-		//printf("coil_index=%d/%d\n", coil_index, num_coils_temp-1);
-		storevals = linetodata(line, &nn);
-		//printf("nn=%d\n", nn);
-		if (nn == 4)
-		{
-			//printf("coilseg_index=%d/%d\n", coilseg_index, max_num_segs-1);
-			for (row=0;row<4;row++) {
-				XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
+			XXvect_coil[coil_index] = calloc(max_num_segs,sizeof(double));
+			for (coilseg_index = 0; coilseg_index < max_num_segs; coilseg_index ++)
+			{
+					XXvect_coil[coil_index][coilseg_index] = calloc(n_params,sizeof(double));
 			}
-			coilseg_index += 1; 
 		}
-		if (nn > 4)
-		{
-			coil_index += 1;
-			coilseg_index = 0;
+		coil_index = 0;
+		coilseg_index = 0;
+		rewind(file_field);
+		while (fgets(line, lenline, file_field) != NULL)
+		{	
+			//printf("coil_index=%d/%d\n", coil_index, num_coils_temp-1);
+			storevals = linetodata(line, &nn);
+			//printf("nn=%d\n", nn);
+			if (nn == n_params)
+			{
+				//printf("coilseg_index=%d/%d\n", coilseg_index, max_num_segs-1);
+				for (row=0;row<n_params;row++) {
+					XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
+				}
+				coilseg_index += 1; 
+			}
+			if (nn > n_params)
+			{
+				coil_index += 1;
+				coilseg_index = 0;
+			}
+			free(storevals);
 		}
-		free(storevals);
+		fclose(file_field);
+		*num_params = num_coils_temp;
+		*num_params2 = num_segs_temp;
 	}
-	fclose(file_coils);
-	*num_coils = num_coils_temp;
-	*num_segs = num_segs_temp;
+	else {
+		*num_params = n_params;
+	}
+	printf("num_params = %d\n", *num_params);
 	//for (coil_index=0; coil_index< *num_coils; coil_index++) {
 	//	printf("%d\n", (*num_segs)[coil_index]);
 	//}
+	XXvect_coil[0][0][2] += 0.00;// check shape gradient (first entry)
 	clock_t int2 = clock();
+	printf("params = %f %f %f\n", XXvect_coil[0][0][0], XXvect_coil[0][0][1],XXvect_coil[0][0][2]);
+	printf("%s\n", type);
 	printf("Time out of coil module: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
 	return XXvect_coil;
 }
@@ -111,6 +179,8 @@ struct field *BReim(int m0_symmetry, double iota0, double iota1, double *epsilon
 		//double check, checkdlen, dlen=0.000001; // uncomment when wishing to check gradients
 		double quantity, dquantitydZ=0.0;
 		struct field *mag = calloc(1,sizeof(struct field));
+		printf("epsilon=%f, iota0=%f, iota1=%f\n", epsilon[0], iota0, iota1);
+		printf("k_theta=%d, size_epsilon=%d, m0_symmetry=%d\n", k_theta[0], size_epsilon, m0_symmetry);
 		theta = atan2(ZZ, RR - R_axis);
 		rmin = sqrt(pow((RR-R_axis), 2.0) + pow(ZZ, 2.0));
 		combo = iota0 + iota1*rmin*rmin;
@@ -273,11 +343,11 @@ struct field *gradBReim(int m0_symmetry, double iota0, double iota1, double *eps
 	//		mag[ind].derivative[2][1] = 0.0;
 		}
 		//mag[0].value[0] = (ZZ / RR) * dcomboiota; mag[0].value[1] = - ( (RR - R_axis) / RR ) * dcomboiota; mag[0].value[2] = 0.0;
-		//mag[0].value[0] = (ZZ / RR) * dcomboiota1; mag[0].value[1] = - ( (RR - R_axis) / RR ) * dcomboiota1; mag[0].value[2] = 0.0;
+		mag[0].value[0] = (ZZ / RR) * dcomboiota1; mag[0].value[1] = - ( (RR - R_axis) / RR ) * dcomboiota1; mag[0].value[2] = 0.0;
 		return mag;
 }
 
-struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, int *num_segs) {
+struct field *Bfield(double *Xp, double varphi, char *type, double ***coils, int n_params, int *num_segs) {
 	//clock_t start = clock();
 	/* below: declare B and gradB calculated with the old way */
 	//double BZ=0.0, BX=0.0, BY=0.0, BR=0.0, Bvarphi=0.0, dBXdR=0.0, dBYdR=0.0, dBZdR=0.0, dBXdZ=0.0, dBYdZ=0.0, dBZdZ=0.0, dBRdR=0.0, dBvarphidR=0.0, dBRdZ=0.0, dBvarphidZ=0.0;
@@ -285,7 +355,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 	double Xminxc=0.0, Yminyc=0.0, Zminzc=0.0, Rminrc=0.0, dxc=0.0, dyc=0.0, dzc=0.0;
 	double XX=Xp[0]*cos(varphi), YY=Xp[0]*sin(varphi), ZZ = Xp[1];
 	double divB;
-	struct field *magfield = calloc(1,sizeof(struct field)), *magfieldpdR = calloc(1,sizeof(struct field)), *magfieldpdZ = calloc(1,sizeof(struct field)), *magfieldpdvarphi = calloc(1, sizeof(struct field));
+	struct field *magfield, *magfieldpdR = calloc(1,sizeof(struct field)), *magfieldpdZ = calloc(1,sizeof(struct field)), *magfieldpdvarphi = calloc(1, sizeof(struct field));
 	//struct field *magfieldmdR = calloc(1,sizeof(struct field)), *magfieldmZ = calloc(1,sizeof(struct field));
 	//struct field *magfieldmdRpdZ = calloc(1,sizeof(struct field)), *magfieldmdZpdR = calloc(1,sizeof(struct field));
 	//struct field *magfieldmdRmdZ = calloc(1,sizeof(struct field)), *magfieldpdZpdR = calloc(1,sizeof(struct field));
@@ -301,7 +371,7 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 	//double RpdZminrc, ZpdZminzc, BXpdZ, BYpdZ, BZpdZ;
 	double amp_Domm[1], epsilon[1], iota[2]; 
 	int pol_Domm[1], tor_Domm[1], k_theta[1];
-	char *type = "coil";
+
 	for (row=0;row<3;row++) {
 		Bvect[row] = 0.0; 
 		for (col=0;col<2;col++) {
@@ -318,12 +388,13 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 	//printf("coils[0][0][0]=%Le\n", coils[0][0][0]); printf("coils[0][0][1]=%Le\n", coils[0][0][1]);
 	//printf("coils[0][0][2]=%Le\n", coils[0][0][2]); printf("coils[0][0][3]=%Le\n", coils[0][0][3]);
 	if (strncmp(type, "coil", 4) == 0) {
+		magfield = calloc(1,sizeof(struct field));
 		Rhat[0] = 1.0; Rhat[1] = 0.0; Rhat[2] = 0.0;
 		Zhat[0] = 0.0; Zhat[1] = 1.0; Zhat[2] = 0.0;
 		phihat[0] = 0.0; phihat[1] = 0.0; phihat[2] = 1.0;
-		for (coil_index=0;coil_index<num_coils;coil_index++)
+		for (coil_index=0;coil_index<n_params;coil_index++)
 		{
-			//printf("num_coils = %d\n", num_coils);
+			//printf("n_params = %d\n", num_coils);
 			//printf("coil_index = %d\n", coil_index);
 			//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
 			for (coilseg_index=0;coilseg_index<num_segs[coil_index];coilseg_index++)
@@ -483,12 +554,13 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 	//clock_t int3 = clock();
 	//printf("Time after evaluating B field at a point: %f\n", (double) (int3-start)/CLOCKS_PER_SEC);
 	else if (strncmp(type, "Reim", 4) == 0) {
-		epsilon[0] = 0.001*(1.0+0.0000); //epsilon[1] = 0.0;
-		//epsilon[0] = 0.0; epsilon[1] = 0.0;
-		k_theta[0] = 6; //k_theta[1] = 3;
-		//epsilon[0] = 0.00; epsilon[1] = 0.00;
-		iota[0] = 0.15; iota[1] = 0.38;
-		magfield = BReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
+		k_theta[0] = 6; //k_theta[1] = 3
+		iota[0] = (**coils)[0]; // 0.15; 
+		iota[1] = (**coils)[1]; //0.38;
+		epsilon[0] = (**coils)[2]; //0.001* 
+		printf("%f %f %f\n", iota[0], iota[1], epsilon[0]);
+		printf("%d\n", num_segs[0]);
+		magfield = BReim(m0_symmetry, iota[0], iota[1], epsilon, num_segs, n_params-2, Xp[0], Xp[1], varphi);
 		//theta = atan2(Xp[1], Xp[0] - R_axis);
 		//rmin = sqrt(pow((Xp[0]-R_axis), 2.0) + pow(Xp[1], 2.0));
 		//combo = iota[0] + iota[1]*rmin*rmin - 2.0*epsilon[0]*cos(2.0*theta - varphi) - 3.0*epsilon[1]*rmin*cos(3.0*theta - varphi);
@@ -586,9 +658,12 @@ struct field *Bfield(double *Xp, double varphi, double ***coils, int num_coils, 
 			printf("div(B) = %f\n", divB);
 		}
 	}
-
+	else {
+		printf("ERROR: No identifiable magnetic field type was found\n");
+		exit(1);
+	}
 	if (check==1) { 
-	free(magfieldpdR); free(magfieldpdZ);
+		free(magfieldpdR); free(magfieldpdZ);
 	}
 	return magfield;
 }
@@ -600,14 +675,13 @@ double delta(int wantszero) {
 	return answer;
 }
 
-struct field *gradBfield(double *Xp, double varphi, double *param) {
+struct field *gradBfield(double *Xp, double varphi, char *type, double *param) {
 	int row, col, dep;
 	double Rminrc, Rminrcvectp[3], Rminrcvectx[3], Rvectp[3], rvectp[3], *coilseg, current;
 	double epsilon[1], iota[2], rotation[3][3];
 	struct field *gradmagfield;
 	int m0_symmetry = 1;
 	int k_theta[1];
-	char *type = "coil";
 	if (strncmp(type, "Reim", 4) == 0) {
 		//gradmagfield = calloc(1,sizeof(struct field)); // allocated in gradBReim
 		epsilon[0] = 0.001; 
@@ -615,6 +689,9 @@ struct field *gradBfield(double *Xp, double varphi, double *param) {
 		k_theta[0] = 6; 
 		//epsilon[0] = 0.00; epsilon[1] = 0.00;
 		iota[0] = 0.15; iota[1] = 0.38;
+		//iota[0] = (**param)[0]; // 0.15; 
+		//iota[1] = (**param)[1]; //0.38;
+		//epsilon[0] = (**param)[2]; //0.001* 
 		gradmagfield = gradBReim(m0_symmetry, iota[0], iota[1], epsilon, k_theta, 1, Xp[0], Xp[1], varphi);
 	}
 	else if (strncmp(type, "coil", 4) == 0) {
