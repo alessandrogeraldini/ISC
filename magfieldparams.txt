@@ -1,0 +1,4 @@
+type Reim
+periods 1
+const 6
+0.15 0.38 0.001

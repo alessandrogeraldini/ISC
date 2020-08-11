@@ -1,0 +1,6 @@
+checkmag n
+Poincare n
+findisla y
+calcshap y
+checshap y
+checfast n
