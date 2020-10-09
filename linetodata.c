@@ -1,35 +1,36 @@
-// This module takes a line from a data file and converts it to an array of numbers (in practice, to a double pointer)
-// There's probably a better way to do it, but this seems to work
+// This module takes a line from a data file and stores it in an array of doubles
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-//#include "linetodata.h"
 #include "isc.h"
 #define LEN 200
 
 
 double *linetodata(char *line, int *size) {
-	int i, imin, lenline, words, started_word;
+	int i, imin, lenline, words, started_word, save=0;
 	char word[LEN];
 	double *line_broken = NULL;
 	/* Iterate over number of characters in the whole line
 	 */
-	line_broken = calloc(4,sizeof(double));
+	line_broken = malloc(100*sizeof(double));
 	//printf("START of linetodata\n");
 	lenline = strlen(line);
 	imin = 0;
 	words = 0;
 	started_word = 0;
 	for (i=0; i<lenline; i++)
-	{ /* Compare each character to a white space (32) or newline (10) character. When a white space is found (or a 
-		 * newline character), we break the string and extract the number from the 
-		 * previous whitepace to the new one.
-		 */
+	{ 
+/* Compare each character to a white space (32) or newline (10) character. When a white space is found (or a 
+ newline character), we break the string and extract the number from the 
+ previous whitepace to the new one.
+ */
 		if ( (line[i] != 32) && (line[i] != 10) ) 
 		{
 			started_word = 1;
 			//words += 1;
+			if ( (isdigit(line[i]) != 0) && (words == 0) ) save = 1;
+			if ( strncmp(line, "param", 5) == 0 ) save = 1;
 		}
 		else 
 		{
@@ -41,7 +42,8 @@ double *linetodata(char *line, int *size) {
 			imin = i+1;
 		}
 	}
-	if ( (words == 4) || (strncmp(line, "cons", 4)) || (strncmp(line, "diff", 4)) ) { // CHANGE HERE
+	if (save == 1) { // CHANGE HERE
+		//printf("saving line\n");
 		imin = 0;
 		words = 0;
 		started_word = 0;
@@ -78,6 +80,7 @@ double *linetodata(char *line, int *size) {
 	//printf("*line_broken+1 = %Le\n", *(line_broken+1));
 	//printf("*line_broken+2 = %Le\n", *(line_broken+2));
 	//printf("*line_broken+3 = %Le\n", *(line_broken+3));
+	//printf("%s\n", line);
 
 	return line_broken;
 }

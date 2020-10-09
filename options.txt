@@ -1,4 +1,4 @@
-checkmag n
+checkmag y
 Poincare n
 findisla y
 calcshap y

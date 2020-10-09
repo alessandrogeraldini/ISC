@@ -2,6 +2,7 @@
   Description: this file contains functions that step forward in toroidal angle
                the functions named derivative contain the derivatives
                the functions named RK4 perform the step forward */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -40,7 +41,7 @@ struct position *derivative_center(struct field *Bparg, struct position *Xparg)
 			funcreturn->tangent[row][col] = Jacobian[row][0]*Xparg->tangent[0][col] + Jacobian[row][1]*Xparg->tangent[1][col];
 		}
 	}
-	//printf("funcereturn=%f\n", funcreturn->loc[0]);
+	//printf("funcreturn->loc=(%f, %f)\n", funcreturn->loc[0], funcreturn->loc[1]);
 	return funcreturn;
 }
 
@@ -103,14 +104,6 @@ struct position *derivative_lambdatangent(struct field *Bp, struct position *Xp,
 	double object[2][2];// Hessian[2][2][2];
 	int row, col, third;
 	Rhat[0] =1.0; Rhat[1] =0.0;
-	//for (row=0;row<2;row++) {
-	//	for (col=0;col<2;col++) {
-	//		for (third=0;third<2;third++) {
-	//			Hessian[row][col][third] = Rhat[col]*(Bp->derivative[row][third]/Bp->value[2] - Rhat[col]*Bp->value[row] * Bp->derivative[2][third]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*(Bp->twoderivative[row][col][third]/(2.0*Bp->value[2]) - Bp->value[row]*Bp->twoderivative[2][third][col]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[row]*Bp->derivative[2][col]*Bp->derivative[2][third]/pow(Bp->value[2], 3.0) - Bp->derivative[row][col]*Bp->derivative[2][third]/pow(Bp->value[2], 2.0) )
-	//		 	+ Rhat[third]*(Bp->derivative[row][col]/Bp->value[2] - Rhat[third]*Bp->value[row] * Bp->derivative[2][col]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*(Bp->twoderivative[row][third][col]/(2.0*Bp->value[2]) - Bp->value[row]*Bp->twoderivative[2][col][third]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[row]*Bp->derivative[2][third]*Bp->derivative[2][col]/pow(Bp->value[2], 3.0) - Bp->derivative[row][third]*Bp->derivative[2][col]/pow(Bp->value[2], 2.0) );
-	//		}
-	//	}
-	//}
 	adjfuncreturn->tangent = malloc(2*sizeof(double*));
 	adjfuncreturn->tangent[0] = malloc(2*sizeof(double)); adjfuncreturn->tangent[1] = malloc(2*sizeof(double));
 	for (row=0;row<2;row++)
@@ -137,12 +130,41 @@ struct position *derivative_lambdatangent(struct field *Bp, struct position *Xp,
 	return adjfuncreturn;
 }
 
+struct position *derivative_lambdamu(struct field *Bp, struct position *Xp, struct position *lambdamu) {
+	struct position *adjfuncreturn=malloc(sizeof(struct position));
+	double Rhat[2];
+	double object[2][2][2];// Hessian[2][2][2];
+	int row, col, dep, third;
+	Rhat[0] =1.0; Rhat[1] =0.0;
+	adjfuncreturn->tangent = malloc(2*sizeof(double*));
+	adjfuncreturn->tangent[0] = malloc(2*sizeof(double)); adjfuncreturn->tangent[1] = malloc(2*sizeof(double));
+	for (row=0;row<2;row++)
+	{
+		adjfuncreturn->loc[row] = 0.0;
+		for (col=0;col<2;col++) {	
+			object[col][row][dep] = 0.0;
+			for (third=0;third<2;third++) {
+				object[col][row][dep] 
+				+= ( Rhat[col]*( Bp->derivative[third][row]/Bp->value[2] - Bp->value[third]*Bp->derivative[2][row]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*( Bp->twoderivative[third][col][row]/(2.0*Bp->value[2]) - Bp->value[third]*Bp->twoderivative[2][row][col]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[third]*Bp->derivative[2][col]*Bp->derivative[2][row]/pow(Bp->value[2], 3.0) - Bp->derivative[third][col]*Bp->derivative[2][row]/pow(Bp->value[2], 2.0) )
+			 	+    Rhat[row]*( Bp->derivative[third][col]/Bp->value[2] - Bp->value[third]*Bp->derivative[2][col]/ pow(Bp->value[2], 2.0) ) + Xp->loc[0]*( Bp->twoderivative[third][row][col]/(2.0*Bp->value[2]) - Bp->value[third]*Bp->twoderivative[2][col][row]/(2.0*pow(Bp->value[2], 2.0)) + Bp->value[third]*Bp->derivative[2][row]*Bp->derivative[2][col]/pow(Bp->value[2], 3.0) - Bp->derivative[third][row]*Bp->derivative[2][col]/pow(Bp->value[2], 2.0) ) ) * lambdamu->tangent[third][dep];
+			}
+			adjfuncreturn->loc[row] -=  ( ( lambdamu->loc[col] / Bp->value[2] ) * ( Rhat[row]*Bp->value[col] + Xp->loc[0] * ( Bp->derivative[col][row] - Bp->derivative[2][row]*Bp->value[col]/Bp->value[2] ) ) + object[col][row][dep]*Xp->tangent[col][dep] );
+			adjfuncreturn->tangent[row][col] = - ( Rhat[row]*Bp->value[0]*lambdamu->tangent[0][col]/Bp->value[2] + Rhat[row]*Bp->value[1]*lambdamu->tangent[1][col]/Bp->value[2] 
+			+ (Xp->loc[0]/Bp->value[2]) * (Bp->derivative[0][row]*lambdamu->tangent[0][col] + Bp->derivative[1][row]*lambdamu->tangent[1][col] 
+			 - Bp->derivative[2][row]*Bp->value[0]*lambdamu->tangent[0][col]/Bp->value[2] - Bp->derivative[2][row]*Bp->value[1]*lambdamu->tangent[1][col]/Bp->value[2] ) ) ;
+		}
+	}
+	return adjfuncreturn;
+}
+
 double *derivative_gradcirc(struct field *Bparg, struct field *gradBparg, struct position *Xparg, struct position *lambdaarg, int num_params)
 {
 	double *adjfunc = NULL;
 	int row, col;
 	adjfunc = calloc(num_params,sizeof(double)); 
+	//printf("num_params=%d\n", num_params);
 	for (row=0;row<num_params;row++) {
+		adjfunc[row] = 0.0;
 		for (col=0;col<2;col++) {
 			adjfunc[row] += ( lambdaarg->loc[col] * Xparg->loc[0] * ( - gradBparg[row].value[col] + gradBparg[row].value[2]*Bparg->value[col] / Bparg->value[2] ) / Bparg->value[2] );
 		}
@@ -176,7 +198,7 @@ double *derivative_gradtangent(struct field *Bparg, struct field *gradBparg, str
 		for (row=0;row<2;row++) {
 			extraterm = 0.0;
 			for (col=0;col<2;col++) {
-				extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg->derivative[row][col] - gradBparg->derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg->value[row]/Bparg->value[2] ) ) ;
+				extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] ) ) ;
 			}
 			adjfunc[pro] += ( lambdaarg->loc[row] * Xparg->loc[0] 
 			* ( - gradBparg[pro].value[row] + gradBparg[pro].value[2]* Bparg->value[row] / Bparg->value[2] ) 
@@ -248,38 +270,35 @@ struct field addstructsfield(double num1, struct field *struct1, double num2, st
 	return structsum;
 }
 
-void RK4step(struct position *Xp, double varphi, double dvarphi, char *type, double ***coils, int num_coils, int *num_segs, struct field *Bfield_saved) {
+//RK4step(fieldline, varphi, dvarphi, type, m0_fieldperiods, coils, n_coils, n_segs, Bfieldsaved[i]);
+void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldparams allparams, struct field *Bfield_saved) {
 	int row;
-	struct field *Bpoint;
 	struct position *dXp[4], Xpold;
 	Xpold = *Xp;
-	Bpoint = Bfield(Xp->loc, varphi, type, coils, num_coils, num_segs);
-	Bfield_saved[0] = *Bpoint;
-	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	dXp[0] = derivative_center(Bpoint, Xp);
+	Bfield_saved[0] = Bfield(Xp->loc, varphi, allparams);
+	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=(%f, %f, %f)\n", Bfield_saved[0].value[0], Bfield_saved[0].value[1], Bfield_saved[0].value[2]);
+	dXp[0] = derivative_center(Bfield_saved, Xp);
+	//printstructposition("dXp ", dXp[0]);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
-	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, type, coils, num_coils, num_segs);
-	Bfield_saved[1] = *Bpoint;
-	dXp[1] = derivative_center(Bpoint, Xp);
+	//printf("after 1st segment of RK iteratiion: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
+	Bfield_saved[1] = Bfield(Xp->loc, varphi + 0.5*dvarphi, allparams);
+	dXp[1] = derivative_center(Bfield_saved+1, Xp);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[1]);
-	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, type, coils, num_coils, num_segs);
-	Bfield_saved[2] = *Bpoint;
-	dXp[2] = derivative_center(Bpoint, Xp);
+	//printf("after 2nd segment of RK iteratiion: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
+	Bfield_saved[2] = Bfield(Xp->loc, varphi + 0.5*dvarphi, allparams);	
+	dXp[2] = derivative_center(Bfield_saved+2, Xp);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp[2]);
-	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	Bpoint = Bfield(Xp->loc, varphi+dvarphi, type, coils, num_coils, num_segs);
-	Bfield_saved[3] = *Bpoint;
-	dXp[3] = derivative_center(Bpoint, Xp);
+	//printf("after 3rd segment of RK iteratiion: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
+	Bfield_saved[3] = Bfield(Xp->loc, varphi+dvarphi, allparams);
+	dXp[3] = derivative_center(Bfield_saved+3, Xp);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp[0]);
 	addstructsreassign(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[1]);
 	addstructsreassign(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[2]);
 	addstructsreassign(1.0, Xp,     (1.0/6.0)*dvarphi, dXp[3]);
-	//printf("after 4th segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 4th segment of RK iteratiion: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
 	for (row=0; row<4; row++) {
 		free(dXp[row]->tangent[0]); free(dXp[row]->tangent[1]); 
 		free(dXp[row]->tangent);
@@ -323,7 +342,6 @@ void RK4step_withsavedB(struct position *Xp, double varphi, double dvarphi, stru
 
 void RK4step_lambdacirc_mutangent(struct position *Xp, struct position *adjvariable, double varphi, double dvarphi, struct field *Bfield_saved) {
 	int row;
-	struct field *Bpoint;
 	struct position *dXp[4], *dadjvariable[4], Xpold, adjvariableold;
 	Xpold.tangent = set_identity();
 	adjvariableold.tangent = set_identity();
@@ -343,21 +361,10 @@ void RK4step_lambdacirc_mutangent(struct position *Xp, struct position *adjvaria
 	//printf("Xp->tangent[0][1] = %f\n", Xp->tangent[0][1]);
 	//printf("Xp->tangent[1][0] = %f\n", Xp->tangent[1][0]);
 	//printf("Xp->tangent[1][1] = %f\n", Xp->tangent[1][1]);
-	//printf("Bpoint->value[0] = %f\n", Bpoint->value[0]);
-	//printf("Bpoint->value[1] = %f\n", Bpoint->value[1]);
-	//printf("Bpoint->value[2] = %f\n", Bpoint->value[2]);
-	//printf("Bpoint->derivative[0][0] = %f\n", Bpoint->derivative[0][0]);
-	//printf("Bpoint->derivative[1][0] = %f\n", Bpoint->derivative[1][0]);
-	//printf("Bpoint->derivative[2][0] = %f\n", Bpoint->derivative[2][0]);
-	//printf("Bpoint->derivative[0][1] = %f\n", Bpoint->derivative[0][1]);
-	//printf("Bpoint->derivative[1][1] = %f\n", Bpoint->derivative[1][1]);
-	//printf("Bpoint->derivative[2][1] = %f\n", Bpoint->derivative[2][1]);
 
-	//Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved;
 	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	dXp[0] = derivative_center(Bpoint, Xp);
-	dadjvariable[0] = derivative_lambdacirc_mutangent(Bpoint, Xp, adjvariable);
+	dXp[0] = derivative_center(Bfield_saved, Xp);
+	dadjvariable[0] = derivative_lambdacirc_mutangent(Bfield_saved, Xp, adjvariable);
 	// I think this memory needs to be kept (because it corresponds to Xp
 	// before the next iteration, which is preserved in the function that
 	// calls this function. So the 2 lines below must remain commented out
@@ -366,28 +373,22 @@ void RK4step_lambdacirc_mutangent(struct position *Xp, struct position *adjvaria
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
 	*adjvariable = addstructs(1.0, &adjvariableold, 0.5*dvarphi, dadjvariable[0]);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+1;
-	dXp[1] = derivative_center(Bpoint, Xp);
-	dadjvariable[1] = derivative_lambdacirc_mutangent(Bpoint, Xp, adjvariable);
+	dXp[1] = derivative_center(Bfield_saved+1, Xp);
+	dadjvariable[1] = derivative_lambdacirc_mutangent(Bfield_saved+1, Xp, adjvariable);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(adjvariable->tangent[0]); free(adjvariable->tangent[1]); free(adjvariable->tangent);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[1]);
 	*adjvariable = addstructs(1.0, &adjvariableold, 0.5*dvarphi, dadjvariable[1]);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+2;
-	dXp[2] = derivative_center(Bpoint, Xp);
-	dadjvariable[2] = derivative_lambdacirc_mutangent(Bpoint, Xp, adjvariable);
+	dXp[2] = derivative_center(Bfield_saved+2, Xp);
+	dadjvariable[2] = derivative_lambdacirc_mutangent(Bfield_saved+2, Xp, adjvariable);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(adjvariable->tangent[0]); free(adjvariable->tangent[1]); free(adjvariable->tangent);
 	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp[2]);
 	*adjvariable = addstructs(1.0, &adjvariableold, dvarphi, dadjvariable[2]);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+3;
-	dXp[3] = derivative_center(Bpoint, Xp);
-	dadjvariable[3] = derivative_lambdacirc_mutangent(Bpoint, Xp, adjvariable);
+	dXp[3] = derivative_center(Bfield_saved+3, Xp);
+	dadjvariable[3] = derivative_lambdacirc_mutangent(Bfield_saved+3, Xp, adjvariable);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(adjvariable->tangent[0]); free(adjvariable->tangent[1]); free(adjvariable->tangent);
 	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp[0]);
@@ -412,7 +413,6 @@ void RK4step_lambdacirc_mutangent(struct position *Xp, struct position *adjvaria
 void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved)
 {
 	int row;
-	struct field *Bpoint;
 	struct position *dXp[4], *dlambda[4], *dsperp[4], *dmu[4], Xpold, lambdaold, sperpold, muold;
 	Xpold.tangent = set_identity();
 	lambdaold.tangent = set_identity();
@@ -436,18 +436,13 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
 	//lambdaold = *lambda;
 	//muold = *mu;
 	//sperpold = *sperp;
-	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
 
-	//Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved;
-	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	dXp[0] = derivative_center(Bpoint, Xp);
-	dlambda[0] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
-	//dlambda[0] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dsperp[0] = derivative_sperp(Bpoint, Xp, sperp);
-	dmu[0] = derivative_lambdacirc_mutangent(Bpoint, Xp, mu);
+	dXp[0] = derivative_center(Bfield_saved, Xp);
+	dlambda[0] = derivative_lambdatangent(Bfield_saved, Xp, lambda, sperp, mu);
+	dsperp[0] = derivative_sperp(Bfield_saved, Xp, sperp);
+	dmu[0] = derivative_lambdacirc_mutangent(Bfield_saved, Xp, mu);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
-	//free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
+	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
 	free(sperp->tangent[0]); free(sperp->tangent[1]); free(sperp->tangent);
 	//free(mu->tangent[0]); free(mu->tangent[1]); free(mu->tangent);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
@@ -455,13 +450,10 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
 	*sperp = addstructs(1.0, &sperpold, 0.5*dvarphi, dsperp[0]);
 	*mu = addstructs(1.0, &muold, 0.5*dvarphi, dmu[0]);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+1;
-	dXp[1] = derivative_center(Bpoint, Xp);
-	dlambda[1] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
-	//dlambda[1] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dsperp[1] = derivative_sperp(Bpoint, Xp, sperp);
-	dmu[1] = derivative_lambdacirc_mutangent(Bpoint, Xp, mu);
+	dXp[1] = derivative_center(Bfield_saved+1, Xp);
+	dlambda[1] = derivative_lambdatangent(Bfield_saved+1, Xp, lambda, sperp, mu);
+	dsperp[1] = derivative_sperp(Bfield_saved+1, Xp, sperp);
+	dmu[1] = derivative_lambdacirc_mutangent(Bfield_saved+1, Xp, mu);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
 	free(sperp->tangent[0]); free(sperp->tangent[1]); free(sperp->tangent);
@@ -471,13 +463,11 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
 	*sperp = addstructs(1.0, &sperpold, 0.5*dvarphi, dsperp[1]);
 	*mu = addstructs(1.0, &muold, 0.5*dvarphi, dmu[1]);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+2;
-	dXp[2] = derivative_center(Bpoint, Xp);
-	dlambda[2] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
-	//dlambda[2] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dsperp[2] = derivative_sperp(Bpoint, Xp, sperp);
-	dmu[2] = derivative_lambdacirc_mutangent(Bpoint, Xp, mu);
+	dXp[2] = derivative_center(Bfield_saved+2, Xp);
+	dlambda[2] = derivative_lambdatangent(Bfield_saved+2, Xp, lambda, sperp, mu);
+	//dlambda[2] = derivative_lambdacirc_mutangent(Bfield_saved+2, Xp, lambda);
+	dsperp[2] = derivative_sperp(Bfield_saved+2, Xp, sperp);
+	dmu[2] = derivative_lambdacirc_mutangent(Bfield_saved+2, Xp, mu);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
 	free(sperp->tangent[0]); free(sperp->tangent[1]); free(sperp->tangent);
@@ -487,13 +477,11 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
 	*sperp = addstructs(1.0, &sperpold, dvarphi, dsperp[2]);
 	*mu = addstructs(1.0, &muold, dvarphi, dmu[2]);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
-	//Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+3;
-	dXp[3] = derivative_center(Bpoint, Xp);
-	dlambda[3] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
-	//dlambda[3] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dsperp[3] = derivative_sperp(Bpoint, Xp, sperp);
-	dmu[3] = derivative_lambdacirc_mutangent(Bpoint, Xp, mu);
+	dXp[3] = derivative_center(Bfield_saved+3, Xp);
+	dlambda[3] = derivative_lambdatangent(Bfield_saved+3, Xp, lambda, sperp, mu);
+	//dlambda[3] = derivative_lambdacirc_mutangent(Bfield_saved+3, Xp, lambda);
+	dsperp[3] = derivative_sperp(Bfield_saved+3, Xp, sperp);
+	dmu[3] = derivative_lambdacirc_mutangent(Bfield_saved+3, Xp, mu);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
 	free(sperp->tangent[0]); free(sperp->tangent[1]); free(sperp->tangent);
@@ -531,14 +519,77 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
 	return;
 }
 
-void RK4step_gradcirc(double *number, struct position *Xp, struct position *lambda, double varphi, double dvarphi, struct field *Bfield_saved, char *type, double *param, int num_params)
+void RK4step_lambdaRes(struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved)
 {
 	int row;
-	struct field *Bpoint, *Bpointgrad;
+	struct position *dXp[4], *dlambdamu[4], Xpold, lambdamuold;
+	Xpold.tangent = set_identity();
+	lambdamuold.tangent = set_identity();
+	for (row = 0; row < 2; row++) {
+		Xpold.loc[row] = Xp->loc[row];
+		Xpold.tangent[row][0] = Xp->tangent[row][0];
+		Xpold.tangent[row][1] = Xp->tangent[row][1];
+		lambdamuold.loc[row] = lambdamu->loc[row];
+		lambdamuold.tangent[row][0] = lambdamu->tangent[row][0];
+		lambdamuold.tangent[row][1] = lambdamu->tangent[row][1];
+	}
+
+	dXp[0] = derivative_center(Bfield_saved, Xp);
+	dlambdamu[0] = derivative_lambdamu(Bfield_saved, Xp, lambdamu);
+	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
+	free(lambdamu->tangent[0]); free(lambdamu->tangent[1]); free(lambdamu->tangent);
+	//free(mu->tangent[0]); free(mu->tangent[1]); free(mu->tangent);
+	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
+	*lambdamu = addstructs(1.0, &lambdamuold, 0.5*dvarphi, dlambdamu[0]);
+	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	dXp[1] = derivative_center(Bfield_saved+1, Xp);
+	dlambdamu[1] = derivative_lambdamu(Bfield_saved+1, Xp, lambdamu);
+	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
+	free(lambdamu->tangent[0]); free(lambdamu->tangent[1]); free(lambdamu->tangent);
+	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[1]);
+	*lambdamu = addstructs(1.0, &lambdamuold, 0.5*dvarphi, dlambdamu[1]);
+	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	dXp[2] = derivative_center(Bfield_saved+2, Xp);
+	dlambdamu[2] = derivative_lambdamu(Bfield_saved+2, Xp, lambdamu);
+	//dlambda[2] = derivative_lambdacirc_mutangent(Bfield_saved+2, Xp, lambda);
+	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
+	free(lambdamu->tangent[0]); free(lambdamu->tangent[1]); free(lambdamu->tangent);
+	*Xp = addstructs(1.0, &Xpold, dvarphi, dXp[2]);
+	*lambdamu = addstructs(1.0, &lambdamuold, dvarphi, dlambdamu[2]);
+	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
+	dXp[3] = derivative_center(Bfield_saved+3, Xp);
+	dlambdamu[3] = derivative_lambdamu(Bfield_saved+3, Xp, lambdamu);
+	//dlambda[3] = derivative_lambdacirc_mutangent(Bfield_saved+3, Xp, lambda);
+	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
+	free(lambdamu->tangent[0]); free(lambdamu->tangent[1]); free(lambdamu->tangent);
+	*Xp = addstructs(1.0, &Xpold, (1.0/6.0)*dvarphi, dXp[0]);
+	addstructsreassign(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[1]);
+	addstructsreassign(1.0, Xp,     (1.0/3.0)*dvarphi, dXp[2]);
+	addstructsreassign(1.0, Xp,     (1.0/6.0)*dvarphi, dXp[3]);
+	*lambdamu = addstructs(1.0, &lambdamuold, (1.0/6.0)*dvarphi, dlambdamu[0]);
+	addstructsreassign(1.0, lambdamu,     (1.0/3.0)*dvarphi, dlambdamu[1]);
+	addstructsreassign(1.0, lambdamu,     (1.0/3.0)*dvarphi, dlambdamu[2]);
+	addstructsreassign(1.0, lambdamu,     (1.0/6.0)*dvarphi, dlambdamu[3]);
+	for (row=0; row<4; row++) {
+		free(dXp[row]->tangent[0]); free(dXp[row]->tangent[1]); 
+		free(dlambdamu[row]->tangent[0]); free(dlambdamu[row]->tangent[1]); 
+		free(dXp[row]->tangent);
+		free(dlambdamu[row]->tangent);
+		free(dXp[row]);
+		free(dlambdamu[row]);
+	}
+	return;
+}
+
+void RK4step_gradcirc(double *number, struct position *Xp, struct position *lambda, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2)
+{
+	int row, num_params = allparams.n_diffparams;
+	struct field *Bpointgrad;
 	struct position *dXp[4], Xpold;
 	struct position *dlambda[4], lambdaold;
 	double *dnumber[4];
 	double numberold[num_params]; 
+	//printf("num_params = %d\n", num_params);
 	Xpold.tangent = set_identity();
 	lambdaold.tangent = set_identity();
 	for (row = 0; row < 2; row++) {
@@ -551,13 +602,12 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 	}
 	for (row=0;row<num_params;row++) 
 		numberold[row] = number[row];
-	Bpoint = Bfield_saved;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
-	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
-	dXp[0] = derivative_center(Bpoint, Xp);
+	//Bpoint = Bfield_saved;
+	Bpointgrad = gradBfield(Xp->loc, varphi, allparams, diffparam_ind1, diffparam_ind2);
+	dXp[0] = derivative_center(Bfield_saved, Xp);
 	//printf("dXp[0]=%f\n", dXp[0]->loc[0]);
-	dlambda[0] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dnumber[0] = derivative_gradcirc(Bpoint, Bpointgrad, Xp, lambda, num_params);
+	dlambda[0] = derivative_lambdacirc_mutangent(Bfield_saved, Xp, lambda);
+	dnumber[0] = derivative_gradcirc(Bfield_saved, Bpointgrad, Xp, lambda, num_params);
 	free(Bpointgrad);
 	//free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	//free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
@@ -566,11 +616,12 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda[0]);
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+1;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
-	dXp[1] = derivative_center(Bpoint, Xp);
-	dlambda[1] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dnumber[1] = derivative_gradcirc(Bpoint, Bpointgrad, Xp, lambda, num_params);
+	//Bpoint = Bfield_saved+1;
+	Bpointgrad = gradBfield(Xp->loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+	//Bpointgrad = gradBfield(Xp->loc, varphi, type, m0_fieldperiods, param, params2);
+	dXp[1] = derivative_center(Bfield_saved+1, Xp);
+	dlambda[1] = derivative_lambdacirc_mutangent(Bfield_saved+1, Xp, lambda);
+	dnumber[1] = derivative_gradcirc(Bfield_saved+1, Bpointgrad, Xp, lambda, num_params);
 	free(Bpointgrad);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
@@ -578,11 +629,12 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 	*lambda = addstructs(1.0, &lambdaold, 0.5*dvarphi, dlambda[1]);
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+2;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
-	dXp[2] = derivative_center(Bpoint, Xp);
-	dlambda[2] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dnumber[2] = derivative_gradcirc(Bpoint, Bpointgrad, Xp, lambda, num_params);
+	//Bpoint = Bfield_saved+2;
+	Bpointgrad = gradBfield(Xp->loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+	//Bpointgrad = gradBfield(Xp->loc, varphi, type, m0_fieldperiods, param, params2);
+	dXp[2] = derivative_center(Bfield_saved+2, Xp);
+	dlambda[2] = derivative_lambdacirc_mutangent(Bfield_saved+2, Xp, lambda);
+	dnumber[2] = derivative_gradcirc(Bfield_saved+2, Bpointgrad, Xp, lambda, num_params);
 	free(Bpointgrad);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
@@ -590,11 +642,12 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 	*lambda = addstructs(1.0, &lambdaold, dvarphi, dlambda[2]);
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
-	Bpoint = Bfield_saved+3;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
-	dXp[3] = derivative_center(Bpoint, Xp);
-	dlambda[3] = derivative_lambdacirc_mutangent(Bpoint, Xp, lambda);
-	dnumber[3] = derivative_gradcirc(Bpoint, Bpointgrad, Xp, lambda, num_params);
+	//Bpoint = Bfield_saved+3;
+	//Bpointgrad = gradBfield(Xp->loc, varphi, type, m0_fieldperiods, param, params2);
+	Bpointgrad = gradBfield(Xp->loc, varphi+dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+	dXp[3] = derivative_center(Bfield_saved+3, Xp);
+	dlambda[3] = derivative_lambdacirc_mutangent(Bfield_saved+3, Xp, lambda);
+	dnumber[3] = derivative_gradcirc(Bfield_saved+3, Bpointgrad, Xp, lambda, num_params);
 	free(Bpointgrad);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);
 	free(lambda->tangent[0]); free(lambda->tangent[1]); free(lambda->tangent);
@@ -610,7 +663,7 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 		number[row] = numberold[row] + dvarphi*(dnumber[0][row]/6.0 + dnumber[1][row]/3.0 + dnumber[2][row]/3.0 + dnumber[3][row]/6.0);
 	}
 
-	for (row=0; row<4; row++) {
+	for (row=0; row<num_params; row++) {
 		free(dXp[row]->tangent[0]); free(dXp[row]->tangent[1]); 
 		free(dlambda[row]->tangent[0]); free(dlambda[row]->tangent[1]); 
 		free(dXp[row]->tangent);
@@ -689,8 +742,8 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 //	return;
 //}
 
-void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, char *type, double *param, int num_params) {
-	int row;
+void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) {
+	int row, num_params=allparams.n_diffparams;
 	struct field *Bpoint, *Bpointgrad;
 	struct position *dXp[4], *dlambda[4], *dsperp[4], *dmu[4], Xpold, lambdaold, sperpold, muold;
 	double *dnumber[4];
@@ -718,7 +771,8 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
 	//Bpoint = Bfield(Xp->loc, varphi, coils, num_coils, num_segs);
 	Bpoint = Bfield_saved;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
+	//Bpointgrad = gradBfield(Xp->loc, varphi, type, m0_fieldperiods, param, params2);
+	Bpointgrad = gradBfield(Xp->loc, varphi, allparams, diffparam_ind1, diffparam_ind2);
 	//printf("magnetic field before 1st segment of RK iteratiion: Bfield=%f\n", Bpoint->value[0]);
 	dXp[0] = derivative_center(Bpoint, Xp);
 	dlambda[0] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
@@ -737,7 +791,8 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 	//printf("after 1st segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpoint = Bfield_saved+1;
-	Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, type, param);
+	//Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, type, m0_fieldperiods, param, params2);
+	Bpointgrad = gradBfield(Xp->loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
 	dXp[1] = derivative_center(Bpoint, Xp);
 	dlambda[1] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
 	dsperp[1] = derivative_sperp(Bpoint, Xp, sperp);
@@ -755,7 +810,8 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 	//printf("after 2nd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi + 0.5*dvarphi, coils, num_coils, num_segs);
 	Bpoint = Bfield_saved+2;
-	Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, type, param);
+	//Bpointgrad = gradBfield(Xp->loc, varphi + 0.5*dvarphi, type, m0_fieldperiods, param, params2);
+	Bpointgrad = gradBfield(Xp->loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
 	dXp[2] = derivative_center(Bpoint, Xp);
 	dlambda[2] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
 	dsperp[2] = derivative_sperp(Bpoint, Xp, sperp);
@@ -773,7 +829,8 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 	//printf("after 3rd segment of RK iteratiion: Xp->loc[0]=%f, Xp1->loc[1]=%f\n", Xp->loc[0], Xp->loc[1]);
 	//Bpoint = Bfield(Xp->loc, varphi+dvarphi, coils, num_coils, num_segs);
 	Bpoint = Bfield_saved+3;
-	Bpointgrad = gradBfield(Xp->loc, varphi, type, param);
+	//Bpointgrad = gradBfield(Xp->loc, varphi, type, m0_fieldperiods, param, params2);
+	Bpointgrad = gradBfield(Xp->loc, varphi+dvarphi, allparams, diffparam_ind1, diffparam_ind2);
 	dXp[3] = derivative_center(Bpoint, Xp);
 	dlambda[3] = derivative_lambdatangent(Bpoint, Xp, lambda, sperp, mu);
 	dsperp[3] = derivative_sperp(Bpoint, Xp, sperp);
@@ -805,7 +862,7 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 		number[row] = numberold[row] + dvarphi*(dnumber[0][row]/6.0 + dnumber[1][row]/3.0 + dnumber[2][row]/3.0 + dnumber[3][row]/6.0);
 	}
 	//printf("dnumber = %f\n", dvarphi*(dnumber[0]/6.0 + dnumber[1]/3.0 + dnumber[2]/3.0 + dnumber[3]/6.0));
-	for (row=0; row<4; row++) {
+	for (row=0; row<num_params; row++) {
 		free(dXp[row]->tangent[0]); free(dXp[row]->tangent[1]); 
 		free(dlambda[row]->tangent[0]); free(dlambda[row]->tangent[1]); 
 		free(dsperp[row]->tangent[0]); free(dsperp[row]->tangent[1]); 

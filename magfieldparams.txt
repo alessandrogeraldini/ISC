@@ -1,4 +1,7 @@
 type Reim
 periods 1
-const 6
-0.15 0.38 0.001
+ncoils 1
+ndiff 3
+const 3 6
+params 
+0.15 0.38 0.01
