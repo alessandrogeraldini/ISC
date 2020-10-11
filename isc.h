@@ -47,6 +47,14 @@ struct ext_position {
    contains q0 index = number of field periods necessary for the rotation of neighbouring points to be pi/2 */
 };
 
+struct islandchain {
+   int L;
+   double circumference;
+   double Res;
+   double *Sigma;
+   double *width;
+};
+
 //struct field_grad {
 //	double value[3];
 //	double derivative[3][2];
@@ -132,6 +140,9 @@ void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldpar
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows field line position and tangent map */
 
+//struct position RK4stepsave(struct position *Xp, double varphi, double dvarphi, struct fieldparams allparams, struct field *Bfield_saved);
+void RK4stepsave(struct position *Xp_adv, struct position *Xp, double varphi, double dvarphi, struct fieldparams allparams, struct field *Bfield_saved) ;
+
 void RK4step_lambdacirc_mutangent(struct position *Xp, struct position *adjvariable, double varphi, double dvarphi, struct field *Bfield_saved);
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows adjoint variables of field line position and tangent map 
@@ -142,14 +153,16 @@ void RK4step_lambdatangent(struct position *Xp, struct position *lambda, struct 
    follows adjoint variable of field line position with additional constraint from tangent map 
    includes only homogeneous terms (linear in mu or lambda), jumps from source terms taken care of separately */
 
-void RK4step_lambdaRes(struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved);
-//void RK4step_gradcirc(double *number, struct position *centre, struct position *lambda_circ, double varphi, double dvarphi, struct field *Bfieldsaved, char *type, int m0_fieldperiods, double *param, int num_params, int *params2);
+void RK4step_lambdaRes(struct position *lambdamu_out, struct position *lambdamu, struct position *Xp, double varphi, double dvarphi, struct field *Bfield_saved);
+
 void RK4step_gradcirc(double *number, struct position *Xp, struct position *lambda, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line circumference, tangent map (eventually), and island width (eventually) */
 
-//void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, char *type, int m0_fieldperiods, double *param, int num_params, int *params2) ;
 void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
+
+//void RK4step_gradRes(double number, &fieldline, &lambdamu, varphi, -dvarphi, Bfield_island[i % N_line], allparams, diffparams_ind1, diffparams_ind2);
+void RK4step_gradRes(double *number, struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2);
 
 void RK4_adjshapecirc(double ***shapecirc, struct position *Xp, struct position *lambda, double varphi, double dvarphi, double ***coils, int num_coils, int *num_segs);
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
@@ -164,6 +177,8 @@ void iotaprofile(char *type, struct position axis, int m0_symmetry, int N_gridph
 
 struct position *solve_islandcenter(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int L_fixedpoints, int N_gridphi_fieldperiod);
 /* finds the centre of an island from a nearby guess using a Newton iteration */
+
+struct position **solve_islandcenter_save(double Rguess, double Zguess, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) ;
 
 struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis, int *n_turns, int m0_symmetry, int L_fixedpoints, double *Res, int *q0_index, int N_gridphi_fieldperiod, struct field **Bfield_saved);
 /* evaluates all quantities necessary to calculate the island width */
@@ -181,7 +196,7 @@ struct position **solve_mu_tangent(struct ext_position *ext_centre, int m0_symme
 struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_position *ext_centre, struct position **mu, int m0_symmetry, int L_fixedpoints, int q0_index, int N_gridphi_fieldperiod);
 /* finds the adjoint solutions that constrain the field line to be periodic (lambdaQ) 
    and constrain the initial tangent map variation to be zero (mu) */
-struct position solve_lambdaRes(struct field **Bfield_saved, struct ext_position *ext_centre, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod) ;
+struct position **solve_lambdaRes(struct field **Bfield_saved, struct position **Xp_saved, double **adjfulltangent, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod) ;
 
 //void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, char *type, double *param, int num_params, int *params2) ;
 void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
@@ -191,6 +206,8 @@ void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, str
 void solve_gradtangent(double **number, struct field **Bfield_island, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int L_fixedpoints, int q0_ind, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 /* evaluates gradient of Sigma (sum of tangent map matrix elements) */
 
+//void solve_gradRes(double *number, struct field **Bfield_island, struct position fieldline, struct position lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
+void solve_gradRes(double *number, struct field **Bfield_island, struct position **fieldline, struct position **lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 
 //double ***shapecircumference(double ***coils, int n_coils, int *n_segs, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) ;
 /* evaluates shape gradient of circumference */

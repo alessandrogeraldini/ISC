@@ -62,12 +62,12 @@ struct position *solve_magneticaxis(struct fieldparams allparams, struct field *
 	fieldline_start.tangent = set_identity();
 	fieldline_start.loc[0] = fieldline->loc[0];
 	fieldline_start.loc[1] = fieldline->loc[1];
-	printf("Finding the magnetic axis position at varphi = 0 and symmetry planes 2*pi*k/m_0 for integer k:\n");
+	//printf("Finding the magnetic axis position at varphi = 0 and symmetry planes 2*pi*k/m_0 for integer k:\n");
 	do {
 		fieldline->tangent[0][0]=1.0; fieldline->tangent[0][1]=0.0; 
 		fieldline->tangent[1][0]=0.0; fieldline->tangent[1][1]=1.0;
 		varphi = 0.0;
-		printf("iteration number %d = (%14.10f, %14.10f)\n", count, fieldline->loc[0], fieldline->loc[1]);
+		//printf("iteration number %d = (%14.10f, %14.10f)\n", count, fieldline->loc[0], fieldline->loc[1]);
 		for (i=0; i<N_lines; i++)
 		{
 			//printf("i=%d/%d\n", i, N_lines);
@@ -164,7 +164,7 @@ struct position *solve_islandcenter(struct fieldparams allparams, struct field *
 
 	do {
 		varphi = 0.0;
-		printf("iteration #%d = (%14.10f, %14.10f)\n", count, fieldline->loc[0], fieldline->loc[1]);
+		//printf("iteration #%d = (%14.10f, %14.10f)\n", count, fieldline->loc[0], fieldline->loc[1]);
 		for (i=0; i<N_line; i++)
 		{
 			centre[i] = *fieldline;
@@ -192,7 +192,71 @@ struct position *solve_islandcenter(struct fieldparams allparams, struct field *
 			fieldline_start = *fieldline;
 		}
 		error = sqrt( (deltafieldline.loc[0]*deltafieldline.loc[0] + deltafieldline.loc[1]*deltafieldline.loc[1] ) / (fieldline->loc[0]*fieldline->loc[0] + fieldline->loc[1]*fieldline->loc[1]) ); 
-		printf("and error = %15.15f\n", error);
+		//printf("and error = %15.15f\n", error);
+		free(jumptocentre);
+		//factor*=0.99;
+		count++;
+	} while (error > smallerror);
+	return centre;
+}
+
+struct position **solve_islandcenter_save(double Rguess, double Zguess, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) {
+	// declarations
+	//clock_t start = clock();
+	int i=0, N_line, count = 0, alternate = 1;
+	double **evecs1=malloc(2*sizeof(double*)), *evals1=malloc(2*sizeof(double)), det, trace;
+	struct position fieldline, fieldline_start, deltafieldline, **centre;
+	double varphi=0.0, *jumptocentre;
+	double dvarphi = 2.0*M_PI/(allparams.m0_fieldperiods*N_gridphi_fieldperiod);
+	//double **matrix;
+	double **pdeltafieldline, det_tangent;
+	double **inverseTminusI, **inverseT;
+	double error = 1.0;
+	double factor = 1.0;
+	evecs1[0] = malloc(2*sizeof(double)); evecs1[1] = malloc(2*sizeof(double));
+	pdeltafieldline = calloc(2,sizeof(double*)); 
+	N_line = L_fixedpoints*N_gridphi_fieldperiod;
+	//centre = malloc(N_line*sizeof(struct position));
+	//for (i=0;i<N_line;i++) centre[i] = malloc(4*sizeof(struct position));
+	centre = malloc(N_line*sizeof(struct position));
+	for (i=0; i<N_line; i++) centre[i] = malloc(4*sizeof(struct position));
+	fieldline.tangent = set_identity();
+	fieldline_start.tangent = set_identity();
+	fieldline_start.loc[0] = fieldline.loc[0] = Rguess;;
+	fieldline_start.loc[1] = fieldline.loc[1] = Zguess;;
+	//printf("Finding the island centre position at varphi = 0:\n");
+	do {
+		varphi = 0.0;
+		//printf("iteration #%d = (%14.10f, %14.10f)\n", count, fieldline.loc[0], fieldline.loc[1]);
+		for (i=0; i<N_line; i++)
+		{
+			//centre[i] = *fieldline;
+			centre[i][0] = fieldline;
+			RK4stepsave(&fieldline, centre[i], varphi, dvarphi, allparams, Bfieldsaved[i]);
+			varphi += dvarphi;
+		}
+		//printstructposition("fieldline", &fieldline); printstructposition("fieldline_start", &fieldline_start);
+		deltafieldline = addstructs(1.0, &fieldline, -1.0, &fieldline_start); 
+		inverseTminusI = invert2x2(deltafieldline.tangent, &det_tangent);
+		inverseT = invert2x2(fieldline.tangent, &det_tangent);
+		jumptocentre = multiply(inverseTminusI, &deltafieldline.loc[0]);
+		jumptocentre[0] *= (factor);
+		jumptocentre[1] *= (factor);
+		if (count == 0) {
+			linalg2x2(fieldline.tangent, evecs1, evals1, &det, &trace);
+			//q0plushalfL = (M_PI/2.0)/evecs1;
+			alternate = (int) (M_PI/2.0)/evals1[1];
+			//alternate = 1;
+		}
+		if (count%alternate == 0 || error < largeerror) {
+			fieldline.loc[0] = fieldline_start.loc[0] - jumptocentre[0]; 
+			fieldline.loc[1] = fieldline_start.loc[1] - jumptocentre[1];
+			fieldline.tangent[0][0]=1.0; fieldline.tangent[0][1]=0.0; 
+			fieldline.tangent[1][0]=0.0; fieldline.tangent[1][1]=1.0;
+			fieldline_start = fieldline;
+		}
+		error = sqrt( (deltafieldline.loc[0]*deltafieldline.loc[0] + deltafieldline.loc[1]*deltafieldline.loc[1] ) / (fieldline.loc[0]*fieldline.loc[0] + fieldline.loc[1]*fieldline.loc[1]) ); 
+		//printf("and error = %15.15f\n", error);
 		free(jumptocentre);
 		//factor*=0.99;
 		count++;
@@ -354,10 +418,10 @@ struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis,
 	}
 	//printf("n_turns = %d\n", *n_turns);
 	linalg2x2(ext_centre[0].full_tangent, evecs1, evals1, &det, &trace);
+	*Res = 0.5 - 0.25*(ext_centre[0].full_tangent[0][0] + ext_centre[0].full_tangent[1][1]);
 	if (*q0_index ==0) {
 		// evals1 is the angle of rotation alpha in the paper
 		omega = m0_symmetry*evals1[1]/(2.0*M_PI*L_fixedpoints); 
-		*Res = 0.5 - 0.25*(ext_centre[0].full_tangent[0][0] + ext_centre[0].full_tangent[1][1]);
 		// omega is different compared to Cary and Hanson's paper, including a factor of m0 
 		q0 = (int) (m0_symmetry/(4.0*omega) - L_fixedpoints/2.0 + 0.5);
 		*q0_index = q0;
@@ -934,54 +998,54 @@ struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_p
 	return lambda;
 }
 
-struct position solve_lambdaRes(struct field **Bfield_saved, struct ext_position *ext_centre, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod) {
+struct position **solve_lambdaRes(struct field **Bfield_saved, struct position **Xp_saved, double **adjfulltangent, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod) {
 	// declarations
 	//clock_t start = clock();
-	int N_line, i=0, count = 0;
-	struct position fieldline_start, fieldline, lambdavar, deltalambda, lambda; 
+	int N_line=L_fixedpoints*N_gridphi_fieldperiod, i=0, count = 0;
+	struct position lambdavar, deltalambda, **lambda=malloc(N_line*sizeof(struct position)); 
 	double varphi=0.0, *jumptocentre; 
-	double det_tangent;
-	double **inverseTminusI, **inverseT;
+	double det;
+	double **lambdatan0, **inverseTminusI, **TminusI=set_identity();
 	double error = 1.0;
 	double dvarphi = 2.0*M_PI/(N_gridphi_fieldperiod*m0_symmetry), factor = 1.0;
-	N_line = L_fixedpoints*N_gridphi_fieldperiod;
-	fieldline.tangent = set_identity();
-	fieldline_start.loc[0] = ext_centre[0].loc[0]; fieldline_start.loc[1] = ext_centre[0].loc[1];
-	lambda.loc[0] = 0.0; lambda.loc[1] = 0.0;
-	lambda.tangent = set_identity();
-	lambdavar.tangent = set_identity();
+	for (i=0; i<N_line; i++)  lambda[i] = malloc(4*sizeof(struct position)); 
+	lambdavar.loc[0] = lambdavar.loc[1] = 0.0; 
+	//lambdavar.tangent = set_identity();
+	lambdatan0 = invert2x2(adjfulltangent, &det);
+	lambdavar.tangent = invert2x2(adjfulltangent, &det);
 	count = 0;
 	//printf("Finding adjoint variable lambdaRes:\n");
 	do {
-		lambda.tangent[0][0] = 1.0; lambda.tangent[0][1]=0.0; lambda.tangent[1][0]=0.0; lambda.tangent[1][1]=1.0;
-		lambdavar.tangent[0][0] = 1.0; lambdavar.tangent[0][1] = 0.0; lambdavar.tangent[1][0] = 0.0; lambdavar.tangent[1][1] = 1.0; 
-		lambdavar.loc[0] = lambda.loc[0]; 
-		lambdavar.loc[1] = lambda.loc[1]; 
-		fieldline.loc[0] = fieldline_start.loc[0];
-		fieldline.loc[1] = fieldline_start.loc[1];
-		fieldline.tangent[0][0] = fieldline.tangent[1][1] = 1.0; 
-		fieldline.tangent[1][0] = fieldline.tangent[0][1] = 0.0; 
-		varphi = 2.0*M_PI*L_fixedpoints/m0_symmetry;
-		for (i=N_line-1; i>=0; i--) {
-			//printf("i=%d/%d\n", i, N_line);
-			RK4step_lambdaRes(&fieldline, &lambdavar, varphi, -dvarphi, Bfield_saved[i]);
-			varphi -= dvarphi;
+		lambdavar.tangent[0][0] = lambdatan0[0][0];
+		lambdavar.tangent[0][1] = lambdatan0[0][1];
+		lambdavar.tangent[1][0] = lambdatan0[1][0];
+		lambdavar.tangent[1][1] = lambdatan0[1][1];
+		//printstructposition("lambdavar (start)", &lambdavar);
+		varphi = 0.0;
+		for (i=0; i<N_line; i++) {
+			//printf("i=%d/%d\n", i, N_line); printstructposition("lambdavar (during)", &lambdavar);
+			lambda[i][0] = lambdavar;
+			RK4step_lambdaRes(&lambdavar, lambda[i], Xp_saved[i], varphi, dvarphi, Bfield_saved[i]);
+			varphi += dvarphi;
 		}
-		deltalambda = addstructs(1.0, &lambdavar, -1.0, &lambda); 
-		inverseTminusI = invert2x2(deltalambda.tangent, &det_tangent);
-		inverseT = invert2x2(lambda.tangent, &det_tangent);
+		//printstructposition("lambdavar (end)", &lambdavar); //printstructposition("lambda", lambda[0]);
+		deltalambda = addstructs(1.0, &lambdavar, -1.0, lambda[0]); 
+		TminusI[0][0] = lambdatan0[0][0] - 1.0;
+		TminusI[0][1] = lambdatan0[0][1] ;
+		TminusI[1][0] = lambdatan0[1][0] ;
+		TminusI[1][1] = lambdatan0[1][1] - 1.0;
+		inverseTminusI = invert2x2(TminusI, &det);
 		jumptocentre = multiply(inverseTminusI, &deltalambda.loc[0]);
 		jumptocentre[0] *= (factor);
 		jumptocentre[1] *= (factor);
-		lambda.loc[0] = lambdavar.loc[0] - jumptocentre[0]; 
-		lambda.loc[1] = lambdavar.loc[1] - jumptocentre[1];
-		error = sqrt((pow(deltalambda.loc[0], 2.0) + pow(deltalambda.loc[1], 2.0))/(lambda.loc[0]*lambda.loc[0] + lambda.loc[1]*lambda.loc[1])); 
-		//printf("error = %15.15f\n", error);
+		lambdavar.loc[0] += jumptocentre[0]; 
+		lambdavar.loc[1] += jumptocentre[1];
+		error = sqrt((pow(deltalambda.loc[0], 2.0) + pow(deltalambda.loc[1], 2.0))/(lambdavar.loc[0]*lambdavar.loc[0] + lambdavar.loc[1]*lambdavar.loc[1])); 
+		printf("error = %15.15f\n", error);
 		count++;
 		//factor*=0.99;
 	} while (error > 10*smallerror );
-	lambda = lambdavar;
-	printstructposition("lambdaRes", &lambda);
+	//printstructposition("lambdaRes", &lambda);
 	return lambda;
 }
 
@@ -1221,6 +1285,24 @@ void solve_gradtangent(double **number, struct field **Bfield_island, struct ext
 	//for (centre_ind=0; centre_ind<L_fixedpoints; centre_ind++) {
 	//	//printf("number = %f\n", number[centre_ind]);
 	//}
+	return;
+}
+
+void solve_gradRes(double *number, struct field **Bfield_island, struct position **fieldline, struct position **lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) {
+	int N_line, i=0;
+	int num_params ;
+	double varphi=0.0;
+	double dvarphi = 2.0*M_PI/(N_gridphi_fieldperiod*allparams.m0_fieldperiods);
+	num_params = allparams.n_diffparams; 
+	N_line = L_fixedpoints*N_gridphi_fieldperiod;
+	for (i=0; i<N_line; i++)
+	{
+		//printf("i=%d/%d\n", i, N_line); printstructposition("lambdamu ", lambdamu[i]);
+		//void RK4step_gradRes(double *number, struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) {
+		RK4step_gradRes(number, fieldline[i], lambdamu[i], varphi, dvarphi, Bfield_island[i], allparams, diffparams_ind1, diffparams_ind2);
+		//printf("number=%f\n", *number);
+		varphi += dvarphi;
+	}
 	return;
 }
 
