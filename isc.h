@@ -9,7 +9,7 @@ struct fieldparams {
 	int *intparams;
 	double *constparams;
 	double ***diffparams;
-	int n_diffparams;
+	int n_diff;
 };
 /* contains the magnetic field parameters */
 
@@ -171,6 +171,9 @@ void RK4_adjshapecirc(double ***shapecirc, struct position *Xp, struct position 
 struct position *solve_magneticaxis(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
 /* finds the magnetic axis using a Newton iteration */
 
+struct position *solve_magneticaxis_save(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
+/* finds the magnetic axis using a Newton iteration */
+
 void iotaprofile(char *type, struct position axis, int m0_symmetry, int N_gridphi_per_field_period, double *rmin, double *zmin, double *iota, double ***coils, int n_coils, int *n_segs) ;
 //void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs);
 /* computes iota as a function of distance from axis in a specified direction */
@@ -180,7 +183,7 @@ struct position *solve_islandcenter(struct fieldparams allparams, struct field *
 
 struct position **solve_islandcenter_save(double Rguess, double Zguess, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) ;
 
-struct ext_position *solve_islandcenter_full(double *islandcenter, double *axis, int *n_turns, int m0_symmetry, int L_fixedpoints, double *Res, int *q0_index, int N_gridphi_fieldperiod, struct field **Bfield_saved);
+struct ext_position *solve_islandcenter_full(double *islandcenter, struct position *axis, int *n_turns, int m0_symmetry, int L_fixedpoints, double *Res, int *q0_index, int N_gridphi_fieldperiod, struct field **Bfield_saved);
 /* evaluates all quantities necessary to calculate the island width */
 
 double *calc_islandwidth(double *circ, double *Sigma, struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode);

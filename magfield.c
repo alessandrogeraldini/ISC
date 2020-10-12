@@ -62,9 +62,9 @@ struct fieldparams fetchparams() {
 			while (line[row] == 32) {
 				row++;
 			}
-			sscanf(line+row, "%2d", &(allparams.n_diffparams));
+			sscanf(line+row, "%2d", &(allparams.n_diff));
 			//*num_coils = m0_temp;
-			printf("n_diffparams = %d\n", allparams.n_diffparams);
+			printf("n_diffparams = %d\n", allparams.n_diff);
 		}
 		else if ( strncmp(line, "const", 5) == 0 ) {
 			ctr = 0;
@@ -118,12 +118,21 @@ struct fieldparams fetchparams() {
 			while (line[nn] != '\n') nn+=1;
 			if (nn>0) {
 				nn=0;
-				allparams.diffparams[coil_index][coilseg_index] = linetodata(line, &nn);
-				coilseg_index += 1;
-				if (coilseg_index ==  allparams.intparams[coil_index]) {
-					coilseg_index = 0;
-					coil_index++;
+				if ( strncmp(allparams.type, "coil", 4) == 0 ) {
+					// for a coil type all segments of the coil are considered
+					allparams.diffparams[coil_index][coilseg_index] = linetodata(line, &nn);
+					coilseg_index += 1;
+					if (coilseg_index ==  allparams.intparams[coil_index]) {
+						coilseg_index = 0;
+						coil_index++;
+					}
 				}
+				else {
+					// for any other type we either have no coils 
+					// or coils parameterized in some way
+					allparams.diffparams[coil_index][0] = linetodata(line, &nn);
+					coil_index++;
+				}	
 			}
 		}
 	}
@@ -760,352 +769,14 @@ struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_p
 	return magfield;
 }
 
-//struct field *Bfieldmod(double *Xp, double varphi, char *type, int m0_symmetry, double ***coils, int n_coils, int *intparams, double *constparams) {
-//	/*
-//		DECLARATIONS
-//	*/
-//	double divB;
-//	double **helicoil[2], helitangent[3], helitangentx[3];
-//	double **AA, **BB, thetacoil, phicoil, Rmaj, rmin, deltaphi, dthetadphi;
-//	int ind, l0=2, n_coil = 2, n_paramstemp[2], n_modes;
-//	struct field *magfield, *magfieldpdR = calloc(1,sizeof(struct field)), *magfieldpdZ = calloc(1,sizeof(struct field)), *magfieldpdvarphi = calloc(1, sizeof(struct field));
-//	struct field dmagfielddR, dmagfielddZ, dmagfielddvarphi;
-//	int coil_index=0, coilseg_index=0; 
-//	int check = 0, row, col, dep;
-//	int N_gridphi_toroidalturn;
-//	double delta = 0.0001;
-//	double current;
-//	double gradB[3][2], gradgradB[3][2][2], gradBcheck[3][2], gradgradBcheck[3][2][2]; 
-//	double amp_Domm[1], epsilon[1], iota[2]; 
-//	int pol_Domm[1], tor_Domm[1];
-//	double Xminxc, Zminzc, Yminyc, dzc, dxc, dyc, drc, XX=Xp[0]*cos(varphi), YY=Xp[0]*sin(varphi), ZZ=Xp[1], Rminrcvect[3], Rminrc, Zhat[3]={0.0, 1.0, 0.0}, Rhat[3]={1.0, 0.0, 0.0}, phihat[3] = {0.0, 0.0, 1.0};
-//	double drcvect[3], Bvect[3] = {0.0, 0.0, 0.0}, dR[3], dZ[3], object;
-//	printf("m0_symmetry=%d\n", m0_symmetry);
-//	//Rhat[0] = 1.0; Rhat[1] = 0.0; Rhat[2] = 0.0;
-//	//Zhat[0] = 0.0; Zhat[1] = 1.0; Zhat[2] = 0.0;
-//	//phihat[0] = 0.0; phihat[1] = 0.0; phihat[2] = 1.0;
-//	
-//	
-//	
-//	for (row=0;row<3;row++) {
-//		//Bvect[row] = 0.0; 
-//		for (col=0;col<2;col++) {
-//			gradB[row][col] = 0.0;
-//			gradBcheck[row][col] = 0.0;
-//			for (dep=0;dep<2;dep++) {
-//				gradgradB[row][col][dep] = 0.0;
-//				gradgradBcheck[row][col][dep] = 0.0;
-//			}
-//		}
-//	}
-//	//printf("Sanity check: print line of coil file\n");
-//	//printf("coils[0][0][0]=%Le\n", coils[0][0][0]); printf("coils[0][0][1]=%Le\n", coils[0][0][1]);
-//	//printf("coils[0][0][2]=%Le\n", coils[0][0][2]); printf("coils[0][0][3]=%Le\n", coils[0][0][3]);
-//	if (strncmp(type, "coil", 4) == 0) {
-//		magfield = Bcoil(Xp[0], Xp[1], varphi, coils, n_coils, intparams); 
-//		if (check == 1) {
-//			magfieldpdR      = Bcoil(Xp[0]+delta, Xp[1], varphi, coils, n_coils, intparams);
-//			magfieldpdZ      = Bcoil(Xp[0], Xp[1]+delta, varphi, coils, n_coils, intparams);
-//			magfieldpdvarphi = Bcoil(Xp[0], Xp[1], varphi + delta, coils, n_coils, intparams);
-//			dmagfielddR = addstructsfield(1/delta, magfieldpdR, -1/delta, magfield);
-//			dmagfielddZ = addstructsfield(1/delta, magfieldpdZ, -1/delta, magfield);
-//			dmagfielddvarphi = addstructsfield(1/delta, magfieldpdvarphi, -1/delta, magfield);
-//			printf("dBRdR   %f %f\n", dmagfielddR.value[0], magfield->derivative[0][0]);
-//			printf("dBZdR   %f %f\n", dmagfielddR.value[1], magfield->derivative[1][0]);
-//			printf("dBphidR %f %f\n", dmagfielddR.value[2], magfield->derivative[2][0]);
-//			printf("dBRdZ   %f %f\n", dmagfielddZ.value[0], magfield->derivative[0][1]);
-//			printf("dBZdZ   %f %f\n", dmagfielddZ.value[1], magfield->derivative[1][1]);
-//			printf("dBphidZ %f %f\n", dmagfielddZ.value[2], magfield->derivative[2][1]);
-//			divB = ( dmagfielddR.value[0] + magfield->value[0] / Xp[0] + dmagfielddZ.value[1] + dmagfielddvarphi.value[2] / Xp[0] ) / sqrt( pow( dmagfielddR.value[0] + magfield->value[0] / Xp[0] , 2.0 ) + pow( dmagfielddZ.value[1], 2.0 ) + pow( dmagfielddvarphi.value[2] / Xp[0] , 2.0 ) );
-//			printf("div(B) = %f\n", divB);
-//		}
-//	}
-//	//else if (strncmp(type, "0000", 4) == 0) {
-//	//	magfield = calloc(1,sizeof(struct field));
-//	//	for (coil_index=0;coil_index<n_coils;coil_index++)
-//	//	{
-//	//		for (coilseg_index=0;coilseg_index<intparams[coil_index];coilseg_index++)
-//	//		{
-//	//			/* extract useful info */
-//	//			current = coils[coil_index][coilseg_index][3];
-//	//			Xminxc = XX - 0.5*coils[coil_index][coilseg_index][0] - 0.5*coils[coil_index][(coilseg_index+1)%intparams[coil_index]][0];
-//	//			Yminyc = YY - 0.5*coils[coil_index][coilseg_index][1] - 0.5*coils[coil_index][(coilseg_index+1)%intparams[coil_index]][1]; 
-//	//			Zminzc = ZZ - 0.5*coils[coil_index][coilseg_index][2] - 0.5*coils[coil_index][(coilseg_index+1)%intparams[coil_index]][2]; 
-//	//			Rminrc = sqrt(pow(Xminxc,  2.0) + pow(Yminyc, 2.0) + pow(Zminzc, 2.0)); 
-//
-//	//			dxc = coils[coil_index][(coilseg_index+1)%intparams[coil_index]][0] - coils[coil_index][coilseg_index][0];
-//	//			dyc = coils[coil_index][(coilseg_index+1)%intparams[coil_index]][1] - coils[coil_index][coilseg_index][1];
-//	//			dzc = coils[coil_index][(coilseg_index+1)%intparams[coil_index]][2] - coils[coil_index][coilseg_index][2];
-//	//			drc = sqrt(pow(dxc, 2.0) + pow(dyc, 2.0) + pow(dzc, 2.0));
-//	//			/* project into cartesian axes aligned with local poloidal plane 
-//	//			Rhat dot (phihat cross Zhat) = 1 prescription -> (R,phi,Z) right-handed */
-//	//			Rminrcvect[0] = cos(varphi)*Xminxc + sin(varphi)*Yminyc;
-//	//			Rminrcvect[1] = Zminzc;
-//	//			Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
-//	//			drcvect[0] = cos(varphi)*dxc + sin(varphi)*dyc;
-//	//			drcvect[1] = dzc;
-//	//			drcvect[2] = - sin(varphi)*dxc + cos(varphi)*dyc; 
-//
-//	//			for (row=0;row<3;row++) {
-//	//				Bvect[row] +=  pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
-//	//				for (col=0;col<2;col++) {
-//	//					gradB[row][col] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
-//	//					for (dep=0; dep<2; dep++) {
-//	//						object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
-//	//						object += 3.0 * Rminrcvect[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
-//	//						object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
-//	//						object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
-//	//						gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-//	//					}
-//	//				}
-//	//			}
-//	//			
-//	//			if (check==1) {
-//	//				for (dep=0;dep<2;dep++) {
-//	//					if (dep==0) {
-//	//						dR[dep] = delta;
-//	//						dZ[dep] = 0.0;
-//	//					}
-//	//					else if (dep==1) {
-//	//						dR[dep] = 0.0;
-//	//						dZ[dep] = delta;
-//	//					}
-//
-//	//					Rminrcvect[0] = cos(varphi)*Xminxc + sin(varphi)*Yminyc + dR[dep];
-//	//					Rminrcvect[1] = Zminzc + dZ[dep];
-//	//					Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
-//	//					Rminrc = pow(pow(Rminrcvect[0], 2.0) + pow(Rminrcvect[1], 2.0) + pow(Rminrcvect[2], 2.0), 0.5);
-//	//					for (row=0;row<3;row++) {
-//	//						gradBcheck[row][dep] +=  pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
-//	//						for (col=0;col<2;col++) {
-//	//							gradgradBcheck[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
-//	//						}
-//	//					}
-//	//				}
-//	//			}
-//	//		}
-//	//	}
-//	//	/* assign Bfield structure the correct values of B, gradB and gradgradB */
-//	//	/* if check == 1 then check with numerical derivatives */
-//	//	for (row=0;row<3;row++) {
-//	//		magfield->value[row] = Bvect[row]; 
-//	//		for (col=0;col<2;col++) {
-//	//			magfield->derivative[row][col] = gradB[row][col]; 
-//	//			if (check==1) {
-//	//				gradBcheck[row][col] = (gradBcheck[row][col] - Bvect[row])/delta;
-//	//				printf("gradB[%d][%d] = %f (check against %f)\n", row, col, gradB[row][col], gradBcheck[row][col]);
-//	//			}
-//	//			for (dep=0;dep<2;dep++) {
-//	//				magfield->twoderivative[row][col][dep] = gradgradB[row][col][dep]; 
-//	//				if (check==1) {
-//	//				
-//	//					gradgradBcheck[row][col][dep] = (gradgradBcheck[row][col][dep] - gradB[row][col])/delta;
-//	//					printf("gradgradB[%d][%d][%d] = %f (check against %f)\n", row, col, dep,  gradgradB[row][col][dep], gradgradBcheck[row][col][dep]);
-//	//				}
-//	//			}
-//	//		}
-//	//	}
-//	//}
-//	else if (strncmp(type, "heli", 4) == 0) {
-//		magfield = calloc(1, sizeof(struct field));
-//		for (row=0;row<3;row++) {
-//			magfield->value[row] = 0.0; 
-//			//Bvect[row] = 0.0; 
-//			for (col=0;col<2;col++) {
-//				magfield->derivative[row][col] = 0.0;
-//				//gradB[row][col] = 0.0;
-//				//gradBcheck[row][col] = 0.0;
-//				for (dep=0;dep<2;dep++) {
-//					magfield->twoderivative[row][col][dep] = 0.0;
-//					//gradgradB[row][col][dep] = 0.0;
-//					//gradgradBcheck[row][col][dep] = 0.0;
-//				}
-//			}
-//		}
-//		l0 = intparams[1];
-//		//printf("l0=%d\n", l0);
-//		//iota[0] = (**coils)[0]; // 0.15; 
-//		//iota[1] = (**coils)[1]; //0.38;
-//		//epsilon[0] = (**coils)[2]; //0.001* 
-//		//printf("m0=%d\n", m0_symmetry);
-//		n_coil = intparams[0];
-//		N_gridphi_toroidalturn = intparams[2];
-//		/* This is a pretty low resolution but from 
-//		   Hanson and Cary's rotational transform 
-//		   on axis it appears what they may have used
-//		   (at the time higher res was prob tough) */
-//		deltaphi = 2.0*M_PI/N_gridphi_toroidalturn;
-//		//BB[0] = 0.0; BB[1] = 0.0; BB[2] = 0.0; BB[3] = 0.0;
-//		//AA[0] = 0.0; AA[1] = 0.0; AA[2] = 0.0; AA[3] = 0.0;
-//		//current = 0.021*pow(10.0, 7.0);
-//		AA = malloc(l0*sizeof(double));
-//		BB = malloc(l0*sizeof(double));
-//		for (coil_index=0;coil_index<n_coil;coil_index++)
-//		{
-//			Rmaj = coils[0][coil_index][0];
-//			rmin = coils[0][coil_index][1];
-//			n_modes = (n_coils-3)/2;
-//			AA[coil_index] = malloc(n_modes*sizeof(double));
-//			BB[coil_index] = malloc(n_modes*sizeof(double));
-//			for (row=0; row<n_modes; row++) {
-//				AA[coil_index][row] = coils[0][coil_index][2+row];
-//				BB[coil_index][row] = coils[0][coil_index][2+row+n_modes];
-//				//printf("AA[%d][%d]=%10.10f, BB[%d][%d]=%10.10f\n", coil_index, row, AA[coil_index][row], coil_index, row, BB[coil_index][row]);
-//			}
-//			//helicurrent[coil_index] = coils[0][coil_index][n_coils-1];
-//			//printf("n_modes = %d, n_coils=%d\n", n_modes, n_coils);
-//			n_paramstemp[coil_index] = N_gridphi_toroidalturn*l0; 
-//			helicoil[coil_index] = malloc(n_paramstemp[coil_index]*sizeof(double));
-//			//printf("%d=%d\n", 3 + 2*n_modes, n_params);
-//			current = coils[coil_index][0][intparams[2]*2-1]*1.0e-7;
-//			//printf("current = %f\n", current);
-//			//printf("n_params = %d\n", num_coils);
-//			//printf("coil_index = %d\n", coil_index);
-//			//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
-//			//current = coils[coil_index][0][3];
-//			for (coilseg_index=0;coilseg_index<n_paramstemp[coil_index];coilseg_index++)
-//			{
-//				//printf("coilseg_index = %d/%d\n", coilseg_index, n_paramstemp[coil_index]);
-//				//printf("coilseg_index=%d/%d\n", coilseg_index, n_paramstemp[coil_index]);
-//				helicoil[coil_index][coilseg_index] = malloc(4*sizeof(double));
-//				phicoil = coilseg_index*deltaphi;
-//				//thetacoil = M_PI*coil_index + m0_symmetry*phicoil/l0;
-//				thetacoil = m0_symmetry*phicoil/l0;
-//				dthetadphi = m0_symmetry/(1.0*l0);
-//				//printf("m0_symmetry = %d\n", m0_symmetry);
-//				for (ind=0;ind<4;ind++) {
-//					thetacoil  += (AA[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0));
-//					dthetadphi += ( ind*m0_symmetry*(-AA[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
-//				}
-//				//printf("dthetadphi = %f\n", dthetadphi);
-//
-//				//printf("phicoil = %f; thetacoil = %f\n", phicoil, thetacoil);
-//				helicoil[coil_index][coilseg_index][0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
-//				helicoil[coil_index][coilseg_index][1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
-//				helicoil[coil_index][coilseg_index][2] =   -rmin*sin(thetacoil) ;
-//				helicoil[coil_index][coilseg_index][3] =   current; 
-//				helitangentx[0] = - ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil) - rmin*sin(thetacoil)*cos(phicoil)*dthetadphi;
-//				helitangentx[1] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil) - rmin*sin(thetacoil)*sin(phicoil)*dthetadphi;
-//				helitangentx[2] =   -rmin*cos(thetacoil)*dthetadphi ;
-//				//printf("helicoil = (%f %f %f) with current = %f\n", helicoil[coil_index][coilseg_index][0], helicoil[coil_index][coilseg_index][1], helicoil[coil_index][coilseg_index][2], helicoil[coil_index][coilseg_index][3] );
-//				//printf("intparams=%d\n", intparams);
-//				Xminxc = XX - helicoil[coil_index][coilseg_index][0];
-//				Yminyc = YY - helicoil[coil_index][coilseg_index][1]; 
-//				Zminzc = ZZ - helicoil[coil_index][coilseg_index][2]; 
-//				Rminrc = sqrt(Xminxc*Xminxc + Yminyc*Yminyc + Zminzc*Zminzc); 
-//
-//				/* project into cartesian axes aligned with local poloidal plane 
-//				Rhat dot (phihat cross Zhat) = 1 prescription -> (R,phi,Z) right-handed */
-//				Rminrcvect[0] = cos(varphi)*Xminxc + sin(varphi)*Yminyc;
-//				Rminrcvect[1] = Zminzc;
-//				Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
-//
-//				helitangent[0] = cos(varphi)*helitangentx[0] + sin(varphi)*helitangentx[1];
-//				helitangent[1] = helitangentx[2];
-//				helitangent[2] = - sin(varphi)*helitangentx[0] + cos(varphi)*helitangentx[1];
-//
-//				for (row=0;row<3;row++) {
-//					magfield->value[row] +=   deltaphi*( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -helitangent[1]*Rminrcvect[2] + helitangent[2]*Rminrcvect[1] ) + Zhat[row] * (-helitangent[2]*Rminrcvect[0] + helitangent[0]*Rminrcvect[2] ) + phihat[row] * (-helitangent[0]*Rminrcvect[1] + helitangent[1]*Rminrcvect[0] ) );
-//					for (col=0;col<2;col++) {
-//						magfield->derivative[row][col] += deltaphi*( ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-helitangent[1]*Rminrcvect[2] + helitangent[2]*Rminrcvect[1] ) + Zhat[row] * (-helitangent[2]*Rminrcvect[0] + helitangent[0]*Rminrcvect[2] ) + phihat[row] * (-helitangent[0]*Rminrcvect[1] + helitangent[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( helitangent[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + helitangent[1] * phihat[row] * Rhat[col] - helitangent[0] * phihat[row] *Zhat[col] ) ) ) ; 
-//						for (dep=0; dep<2; dep++) {
-//							object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - helitangent[1]*Rminrcvect[2] + helitangent[2]*Rminrcvect[1] ) + Zhat[row] * (-helitangent[2]*Rminrcvect[0] + helitangent[0]*Rminrcvect[2] ) + phihat[row] * (-helitangent[0]*Rminrcvect[1] + helitangent[1]*Rminrcvect[0] ) );
-//							object += 3.0 * Rminrcvect[dep]* ( helitangent[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - helitangent[1] * phihat[row] * Rhat[col] + helitangent[0] * phihat[row] *Zhat[col] ) ; 
-//							object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   helitangent[2] * Zhat[row] - helitangent[1] * phihat[row] );
-//							object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - helitangent[2]* Rhat[row] + helitangent[0] * phihat[row]  );
-//							magfield->twoderivative[row][col][dep] += deltaphi*(  ( current / pow(Rminrc, 5.0) ) * object ) ;
-//						}
-//					}
-//				}
-//			}
-//		}
-//		//magfield = Bcoil(Xp[0], Xp[1], varphi, helicoil, n_coil, n_paramstemp); 
-//		
-//		magfield->value[2] += 1.0/Xp[0];
-//		magfield->derivative[2][0] -= 1.0/pow(Xp[0], 2.0);
-//		magfield->twoderivative[2][0][0] += 2.0/pow(Xp[0], 3.0);
-//		//printstructfield("magfield", magfield);
-//	}
-//	else if (strncmp(type, "Reim", 4) == 0) {
-//		iota[0] = (**coils)[0]; // 0.15; 
-//		iota[1] = (**coils)[1]; //0.38;
-//		epsilon[0] = (**coils)[2]; //0.001* 
-//		//printf("n_params=%d\n", n_params);
-//		//printf("intparams = %d\n", intparams[0]);
-//		//printf("m0_symmetry = %d\n", m0_symmetry);
-//		//printf("iota0 = %f, iota1 = %f epsilon = %f\n", iota[0], iota[1], epsilon[0]);
-//		magfield = BReim(Xp[0], Xp[1], varphi, m0_symmetry, iota[0], iota[1], epsilon, intparams, n_coils-2);
-//		if (check == 1) {
-//			magfieldpdR      = BReim(Xp[0]+delta, Xp[1], varphi, m0_symmetry, iota[0], iota[1], epsilon, intparams, 1);
-//			magfieldpdZ      = BReim(Xp[0], Xp[1]+delta, varphi, m0_symmetry, iota[0], iota[1], epsilon, intparams, 1);
-//			magfieldpdvarphi = BReim(Xp[0], Xp[1], varphi + delta, m0_symmetry, iota[0], iota[1], epsilon, intparams, 1);
-//			dmagfielddR = addstructsfield(1/delta, magfieldpdR, -1/delta, magfield);
-//			dmagfielddZ = addstructsfield(1/delta, magfieldpdZ, -1/delta, magfield);
-//			dmagfielddvarphi = addstructsfield(1/delta, magfieldpdvarphi, -1/delta, magfield);
-//			printf("dBRdR   %f %f\n", dmagfielddR.value[0], magfield->derivative[0][0]);
-//			printf("dBZdR   %f %f\n", dmagfielddR.value[1], magfield->derivative[1][0]);
-//			printf("dBphidR %f %f\n", dmagfielddR.value[2], magfield->derivative[2][0]);
-//			printf("dBRdZ   %f %f\n", dmagfielddZ.value[0], magfield->derivative[0][1]);
-//			printf("dBZdZ   %f %f\n", dmagfielddZ.value[1], magfield->derivative[1][1]);
-//			printf("dBphidZ %f %f\n", dmagfielddZ.value[2], magfield->derivative[2][1]);
-//			//divb = ( dmagfielddr.value[0] + magfield->value[0] / xp[0] + dmagfielddz.value[1] ) / sqrt( pow(magfield->value[0], 2.0) + pow(magfield->value[1], 2.0) );
-//			divB = ( dmagfielddR.value[0] + magfield->value[0] / Xp[0] + dmagfielddZ.value[1] + dmagfielddvarphi.value[2] / Xp[0] ) / sqrt( pow( dmagfielddR.value[0] + magfield->value[0] / Xp[0] , 2.0 ) + pow( dmagfielddZ.value[1], 2.0 ) + pow( dmagfielddvarphi.value[2] / Xp[0] , 2.0 ) );
-//			printf("div(B) = %f\n", divB);
-//		}
-//	}
-//	else if (strncmp(type, "Domm", 4) == 0) {
-//		amp_Domm[0]=1.73; pol_Domm[0] = 2; tor_Domm[0] = 5;
-//		//amp_Domm[0]=2.0; pol_Domm[0] = 5; tor_Domm[0] = 5;
-//		//amp_Domm[0]=0.001; pol_Domm[0] = 4; tor_Domm[0] = 8;
-//		//amp_Domm[0]=0.00000; pol_Domm[0] = 2; tor_Domm[0] = 5;
-//		magfield = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0], Xp[1], varphi);
-//		if (check==1) {
-//			magfieldpdR = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0]+delta, Xp[1], varphi);
-//			magfieldpdZ = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0], Xp[1]+delta, varphi);
-//			magfieldpdvarphi = DommBfield(1, amp_Domm, tor_Domm, pol_Domm, Xp[0], Xp[1], varphi + delta);
-//			//BX = 0.0; BY = 0.0; BZ = 0.0;
-//			//BXpdR = 0.0; BYpdR = 0.0; BZpdR = 0.0;
-//			//BXpdZ = 0.0; BYpdZ = 0.0; BZpdZ = 0.0;
-//			//dBXdR = 0.0; dBYdR = 0.0; dBZdR = 0.0;
-//			//dBXdZ = 0.0; dBYdZ = 0.0; dBZdZ = 0.0;
-//			//BXpdR = 0.0; BYpdR = 0.0; BZpdR = 0.0;
-//			dmagfielddR = addstructsfield(1/delta, magfieldpdR, -1/delta, magfield);
-//			dmagfielddZ = addstructsfield(1/delta, magfieldpdZ, -1/delta, magfield);
-//			dmagfielddvarphi = addstructsfield(1/delta, magfieldpdvarphi, -1/delta, magfield);
-//			printf("dBRdR   %f %f\n", dmagfielddR.value[0], magfield->derivative[0][0]);
-//			printf("dBZdR   %f %f\n", dmagfielddR.value[1], magfield->derivative[1][0]);
-//			printf("dBphidR %f %f\n", dmagfielddR.value[2], magfield->derivative[2][0]);
-//			printf("dBRdZ   %f %f\n", dmagfielddZ.value[0], magfield->derivative[0][1]);
-//			printf("dBZdZ   %f %f\n", dmagfielddZ.value[1], magfield->derivative[1][1]);
-//			printf("dBphidZ %f %f\n", dmagfielddZ.value[2], magfield->derivative[2][1]);
-//			//printf("%f %f\n", magfield->derivative[1][0], dBZdR);
-//			//printf("%f %f\n", magfield->derivative[2][0], dBvarphidR);
-//			//printf("%f %f\n", magfield->derivative[0][1], dBRdZ);
-//			//printf("%f %f\n", magfield->derivative[1][1], dBZdZ);
-//			//printf("%f %f\n", magfield->derivative[2][1], dBvarphidZ);
-//			//divB = ( dmagfielddR.value[0] + magfield->value[0] / Xp[0] + dmagfielddZ.value[1] + dmagfielddvarphi.value[2] / Xp[0] ) / sqrt( pow(magfield->value[0], 2.0) + pow(magfield->value[1], 2.0) + pow(magfield->value[2], 2.0) );
-//			divB = ( dmagfielddR.value[0] + magfield->value[0] / Xp[0] + dmagfielddZ.value[1] + dmagfielddvarphi.value[2] / Xp[0] ) / sqrt( pow( dmagfielddR.value[0] + magfield->value[0] / Xp[0] , 2.0 ) + pow( dmagfielddZ.value[1], 2.0 ) + pow( dmagfielddvarphi.value[2] / Xp[0] , 2.0 ) );
-//			printf("div(B) = %f\n", divB);
-//		}
-//	}
-//	else {
-//		printf("ERROR: No identifiable magnetic field type was found\n");
-//		exit(1);
-//	}
-//	if (check==1) { 
-//		free(magfieldpdR); free(magfieldpdZ);
-//	}
-//	return magfield;
-//}
-
 struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 	/*
 		DECLARATIONS
 	*/
 	double divB;
-	double **helicoil[2], helitangent[3], helitangentx[3];
+	double ***helicoil, helitangent[3], helitangentx[3];
 	double **AA, **BB, thetacoil, phicoil, Rmaj, rmin, deltaphi, dthetadphi;
-	int ind, l0=2, n_coil = 2, n_paramstemp[2], n_modes;
+	int ind, l0=2, n_coil = 2, *n_paramstemp, n_diff;
 	struct field magfield, magfielddelta[3];
 	struct field dmagfield[3];
 	int coil_index=0, coilseg_index=0; 
@@ -1266,64 +937,60 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 				}
 			}
 		}
-		l0 = intparams[1];
+		n_paramstemp = malloc(n_coil*sizeof(double));
+		helicoil = malloc(n_coil*sizeof(double));
+		l0 = intparams[0];
+		n_coil = allparams.n_coils ; //intparams[0];
+		n_diff = allparams.n_diff;
 		//printf("l0=%d\n", l0);
-		//iota[0] = (**coils)[0]; // 0.15; 
-		//iota[1] = (**coils)[1]; //0.38;
-		//epsilon[0] = (**coils)[2]; //0.001* 
 		//printf("m0=%d\n", m0_symmetry);
-		n_coil = intparams[0];
-		N_gridphi_toroidalturn = intparams[2];
+		//printf("n_coil=%d\n", n_coil);
+		//printf("n_diff=%d\n", n_diff);
+		N_gridphi_toroidalturn = intparams[1];
 		/* This is a pretty low resolution but from 
 		   Hanson and Cary's rotational transform 
 		   on axis it appears what they may have used
 		   (at the time higher res was prob tough) */
 		deltaphi = 2.0*M_PI/N_gridphi_toroidalturn;
-		//BB[0] = 0.0; BB[1] = 0.0; BB[2] = 0.0; BB[3] = 0.0;
-		//AA[0] = 0.0; AA[1] = 0.0; AA[2] = 0.0; AA[3] = 0.0;
-		//current = 0.021*pow(10.0, 7.0);
-		AA = malloc(l0*sizeof(double));
-		BB = malloc(l0*sizeof(double));
+		AA = malloc(n_coil*sizeof(double));
+		BB = malloc(n_coil*sizeof(double));
+		Rmaj = allparams.constparams[0];
+		rmin = allparams.constparams[1];
+		//printf("Rmaj = %f, rmin = %f\n", Rmaj, rmin);
+		//printf("Ngridphi = %d\n", N_gridphi_toroidalturn);
 		for (coil_index=0;coil_index<n_coil;coil_index++)
 		{
-			Rmaj = coils[0][coil_index][0];
-			rmin = coils[0][coil_index][1];
-			n_modes = (n_coils-3)/2;
-			AA[coil_index] = malloc(n_modes*sizeof(double));
-			BB[coil_index] = malloc(n_modes*sizeof(double));
-			for (row=0; row<n_modes; row++) {
-				AA[coil_index][row] = coils[0][coil_index][2+row];
-				BB[coil_index][row] = coils[0][coil_index][2+row+n_modes];
-				//printf("AA[%d][%d]=%10.10f, BB[%d][%d]=%10.10f\n", coil_index, row, AA[coil_index][row], coil_index, row, BB[coil_index][row]);
+			//printf("coil_index=%d/%d\n", coil_index, n_coil);
+			
+			AA[coil_index] = malloc((n_diff/2)*sizeof(double));
+			BB[coil_index] = malloc((n_diff/2)*sizeof(double));
+			AA[coil_index][0] = coils[coil_index][0][0];
+			BB[coil_index][0] = 0.0;
+			for (row=1; row<n_diff-1; row++) {
+				if (row%2 == 1)  AA[coil_index][(row+1)/2] = coils[coil_index][0][row];
+				else BB[coil_index][(row)/2] = coils[coil_index][0][row];
 			}
-			//helicurrent[coil_index] = coils[0][coil_index][n_coils-1];
-			//printf("n_modes = %d, n_coils=%d\n", n_modes, n_coils);
+			//for (row=0; row<n_diff/2; row++) printf("AA[%d][%d]=%10.10f, BB[%d][%d]=%10.10f\n", coil_index, row, AA[coil_index][row], coil_index, row, BB[coil_index][row]);
 			n_paramstemp[coil_index] = N_gridphi_toroidalturn*l0; 
 			helicoil[coil_index] = malloc(n_paramstemp[coil_index]*sizeof(double));
 			//printf("%d=%d\n", 3 + 2*n_modes, n_params);
-			current = coils[coil_index][0][intparams[2]*2-1]*1.0e-7;
+			current = coils[coil_index][0][n_diff-1]*1.0e-7;
 			//printf("current = %f\n", current);
 			//printf("n_params = %d\n", num_coils);
 			//printf("coil_index = %d\n", coil_index);
 			//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
 			//current = coils[coil_index][0][3];
-			for (coilseg_index=0;coilseg_index<n_paramstemp[coil_index];coilseg_index++)
+			for (coilseg_index=0;coilseg_index<l0*N_gridphi_toroidalturn;coilseg_index++)
 			{
-				//printf("coilseg_index = %d/%d\n", coilseg_index, n_paramstemp[coil_index]);
-				//printf("coilseg_index=%d/%d\n", coilseg_index, n_paramstemp[coil_index]);
+				//printf("coilseg_index = %d/%d\n", coilseg_index, l0*N_gridphi_toroidalturn);
 				helicoil[coil_index][coilseg_index] = malloc(4*sizeof(double));
 				phicoil = coilseg_index*deltaphi;
-				//thetacoil = M_PI*coil_index + m0_symmetry*phicoil/l0;
 				thetacoil = m0_symmetry*phicoil/l0;
-				dthetadphi = m0_symmetry/(1.0*l0);
-				//printf("m0_symmetry = %d\n", m0_symmetry);
+				dthetadphi = (double) m0_symmetry/l0;
 				for (ind=0;ind<4;ind++) {
 					thetacoil  += (AA[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0));
 					dthetadphi += ( ind*m0_symmetry*(-AA[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
 				}
-				//printf("dthetadphi = %f\n", dthetadphi);
-
-				//printf("phicoil = %f; thetacoil = %f\n", phicoil, thetacoil);
 				helicoil[coil_index][coilseg_index][0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
 				helicoil[coil_index][coilseg_index][1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
 				helicoil[coil_index][coilseg_index][2] =   -rmin*sin(thetacoil) ;
@@ -1332,6 +999,8 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 				helitangentx[1] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil) - rmin*sin(thetacoil)*sin(phicoil)*dthetadphi;
 				helitangentx[2] =   -rmin*cos(thetacoil)*dthetadphi ;
 				//printf("helicoil = (%f %f %f) with current = %f\n", helicoil[coil_index][coilseg_index][0], helicoil[coil_index][coilseg_index][1], helicoil[coil_index][coilseg_index][2], helicoil[coil_index][coilseg_index][3] );
+				//printf("helitangentx = (%f %f %f)\n", helitangentx[0], helitangentx[1], helitangentx[2]);
+				//printf("Rmaj = %f, rmin = %f, thetacoil  %f, phicoil = %f, dthetadphi = %f\n", Rmaj, rmin, thetacoil, phicoil, dthetadphi);
 				//printf("intparams=%d\n", intparams);
 				Xminxc = XX - helicoil[coil_index][coilseg_index][0];
 				Yminyc = YY - helicoil[coil_index][coilseg_index][1]; 
@@ -1347,7 +1016,8 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 				helitangent[0] = cos(varphi)*helitangentx[0] + sin(varphi)*helitangentx[1];
 				helitangent[1] = helitangentx[2];
 				helitangent[2] = - sin(varphi)*helitangentx[0] + cos(varphi)*helitangentx[1];
-
+				//printf("helitangent = (%f %f %f)\n", helitangent[0], helitangent[1], helitangent[2]);
+				//printf("dthetadphi = %f\n", dthetadphi); //printf("phicoil = %f; thetacoil = %f\n", phicoil, thetacoil);
 				for (row=0;row<3;row++) {
 					magfield.value[row] +=   deltaphi*( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -helitangent[1]*Rminrcvect[2] + helitangent[2]*Rminrcvect[1] ) + Zhat[row] * (-helitangent[2]*Rminrcvect[0] + helitangent[0]*Rminrcvect[2] ) + phihat[row] * (-helitangent[0]*Rminrcvect[1] + helitangent[1]*Rminrcvect[0] ) );
 					for (col=0;col<2;col++) {
@@ -1449,147 +1119,158 @@ struct field *shapeBcoil(double *Xp, double varphi, double *coilseg) {
 				for (dep=0; dep<2;dep++) {
 					//printf("param = (%f, %f, %f, %f)\n", param[0], param[1], param[2], param[3]);
 					gradmagfield[row].derivative[col][dep] 
-					= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvectp[dep]*( rotation[row][col] - 5.0 *Rminrcvectp[row] *Rminrcvectp[col] / pow(Rminrc, 2.0) ) + 3.0 *delta(dep - col) *Rminrcvectp[row] + 3.0 * rotation[row][dep] *Rminrcvectp[col] ) ;	
+					= pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvectp[dep]*( rotation[row][col] - 5.0 *Rminrcvectx[row] *Rminrcvectp[col] / pow(Rminrc, 2.0) ) + 3.0 *delta(dep - col) *Rminrcvectx[row] + 3.0 * rotation[row][dep] *Rminrcvectp[col] ) ;	
 				}
 			}
 		}
 	return gradmagfield;
 }
 
-struct field *gradBheli(double *Xp, double varphi, int m0_symmetry, double *params, int *n_params2, int coil_ind) {
-	int ind_param, row, col, dep, ind, coil_index, coilseg_index; 
-	int l0, N_gridphi_toroidalturn, n_modes=0, n_coils, n_segs;
+struct field *gradBheli(double *Xp, double varphi, int m0_symmetry, struct fieldparams allparams, int coil_index) {
+	int ind_param, row, col, dep, ind, coilseg_index; 
+	int l0, N_gridphi_toroidalturn, n_coils, n_segs, n_diff;
 	double XX = Xp[0]*cos(varphi), YY = Xp[0]*sin(varphi), ZZ = Xp[1];
 	double Xminxc, Yminyc, Zminzc, Rminrcvect[3], drcdkappa[3], crossprdct[3];
 	double Rminrc, Rminrcvectp[3], Rminrcvectx[3], Rvectp[3], rvectp[3], current;
 	double helicoil[3], helitanx[3], helitanp[3];
 	double Rmaj, rmin;
-	double rotation[3][3], AA[n_modes], BB[n_modes];
+	double rotation[3][3], *AA, *BB;
 	double thetacoil, phicoil, deltaphi, dthetadphi;
-	struct field *shapegrad=NULL, *gradmagfield = NULL;
-	gradmagfield = calloc(n_params2[2]*2, sizeof(struct field));
-	for (row=0;row<3;row++) {
+	struct field *gradmagfield;
+	n_diff = allparams.n_diff;
+	gradmagfield = calloc(n_diff, sizeof(struct field));
+	for (row=0;row<n_diff;row++) {
 		//Bvect[row] = 0.0; 
-		for (col=0;col<2;col++) {
+		for (col=0;col<3;col++) {
 			gradmagfield[row].value[col] = 0.0; 
 			for (dep=0;dep<2;dep++) {
 				gradmagfield[row].derivative[col][dep] = 0.0;
 			}
 		}
 	}
-	l0 = n_params2[1];
-	n_coils = n_params2[0];
-	N_gridphi_toroidalturn = n_params2[2];
+	l0 = allparams.intparams[0];
+	n_coils = allparams.n_coils ; //intparams[0];
+	//printf("l0=%d\n", l0);
+	//printf("m0=%d\n", m0_symmetry);
+	//printf("n_coil=%d\n", n_coil);
+	//printf("n_diff=%d\n", n_diff);
+	N_gridphi_toroidalturn = allparams.intparams[1];
 	deltaphi = 2.0*M_PI/N_gridphi_toroidalturn;
+	Rmaj = allparams.constparams[0];
+	rmin = allparams.constparams[1];
 	//BB[0] = 0.0; BB[1] = 0.0; BB[2] = 0.0; BB[3] = 0.0;
 	//AA[0] = 0.0; AA[1] = 0.0; AA[2] = 0.0; AA[3] = 0.0;
 	//current = 0.021*pow(10.0, 7.0);
-	printf("here\n");
-	for (ind_param=0; ind_param< 2*n_modes; ind_param++) {
-		for (coil_index=0;coil_index<n_coils;coil_index++) {
-			Rmaj = params[0];
-			rmin = params[1];
-			for (row=0; row<n_modes; row++) {
-				AA[row] = params[2+row];
-				BB[row] = params[2+row+n_modes];
-				//printf("AA[%d][%d]=%10.10f, BB[%d][%d]=%10.10f\n", coil_index, row, AA[coil_index][row], coil_index, row, BB[coil_index][row]);
+	AA = malloc((n_diff/2)*sizeof(double));
+	BB = malloc((n_diff/2)*sizeof(double));
+	//printf("here\n");
+	for (ind_param=0; ind_param< n_diff-1; ind_param++) {
+		AA[0] = allparams.diffparams[coil_index][0][0];
+		BB[0] = 0.0;
+		for (row=1; row<n_diff-1; row++) {
+			if (row%2 == 1)  AA[(row+1)/2] = allparams.diffparams[coil_index][0][row];
+			else             BB[(row)/2] =   allparams.diffparams[coil_index][0][row];
+		}
+		n_segs = N_gridphi_toroidalturn*l0; 
+		//printf("%d=%d\n", 3 + 2*n_modes, n_params);
+		current = allparams.diffparams[coil_index][0][n_diff-1]*1.0e-7;
+		//printf("coil_index = %d\n", coil_index);
+		//printf("current = %f\n", current);
+		//printf("n_params = %d\n", num_coils);
+		//printf("coil_index = %d\n", coil_index);
+		//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
+		for (coilseg_index=0;coilseg_index<n_segs;coilseg_index++)
+		{
+			phicoil = coilseg_index*deltaphi;
+			//thetacoil = M_PI*coil_index + m0_symmetry*phicoil/l0;
+			thetacoil = m0_symmetry*phicoil/l0;
+			dthetadphi = m0_symmetry/(1.0*l0);
+			//printf("m0_symmetry = %d\n", m0_symmetry);
+			for (ind=0;ind<4;ind++) {
+				thetacoil  += (AA[ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[ind]*sin(ind*m0_symmetry*phicoil/l0));
+				dthetadphi += ( ind*m0_symmetry*(-AA[ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
 			}
-			//helicurrent[coil_index] = coils[0][coil_index][n_params-1];
-			//printf("n_modes = %d, n_params=%d\n", n_modes, n_params);
-			n_segs = N_gridphi_toroidalturn*l0; 
-			//printf("%d=%d\n", 3 + 2*n_modes, n_params);
-			current = params[2]*1.0e-7;
-			//printf("current = %f\n", current);
-			//printf("n_params = %d\n", num_coils);
-			//printf("coil_index = %d\n", coil_index);
-			//for (coilseg_index=0;coilseg_index<*(*num_segs+coil_index)-1;coilseg_index++)
-			for (coilseg_index=0;coilseg_index<n_segs;coilseg_index++)
-			{
-				phicoil = coilseg_index*deltaphi;
-				//thetacoil = M_PI*coil_index + m0_symmetry*phicoil/l0;
-				thetacoil = m0_symmetry*phicoil/l0;
-				dthetadphi = m0_symmetry/(1.0*l0);
-				//printf("m0_symmetry = %d\n", m0_symmetry);
-				for (ind=0;ind<4;ind++) {
-					thetacoil  += (AA[ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[ind]*sin(ind*m0_symmetry*phicoil/l0));
-					dthetadphi += ( ind*m0_symmetry*(-AA[ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
-				}
-				//printf("dthetadphi = %f\n", dthetadphi);
+			//printf("dthetadphi = %f\n", dthetadphi);
 
-				//printf("phicoil = %f; thetacoil = %f\n", phicoil, thetacoil);
-				helicoil[0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
-				helicoil[1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
-				helicoil[2] =   -rmin*sin(thetacoil) ;
-				helitanx[0] = - ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil) - rmin*sin(thetacoil)*cos(phicoil)*dthetadphi;
-				helitanx[1] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil) - rmin*sin(thetacoil)*sin(phicoil)*dthetadphi;
-				helitanx[2] =   -rmin*cos(thetacoil)*dthetadphi ;
-				Xminxc = XX - helicoil[0];
-				Yminyc = YY - helicoil[1]; 
-				Zminzc = ZZ - helicoil[2]; 
-				Rminrc = sqrt(Xminxc*Xminxc + Yminyc*Yminyc + Zminzc*Zminzc); 
+			helicoil[0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
+			helicoil[1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
+			helicoil[2] =   -rmin*sin(thetacoil) ;
+			helitanx[0] = - ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil) - rmin*sin(thetacoil)*cos(phicoil)*dthetadphi;
+			helitanx[1] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil) - rmin*sin(thetacoil)*sin(phicoil)*dthetadphi;
+			helitanx[2] =   -rmin*cos(thetacoil)*dthetadphi ;
+			Xminxc = XX - helicoil[0];
+			Yminyc = YY - helicoil[1]; 
+			Zminzc = ZZ - helicoil[2]; 
+			Rminrc = sqrt(Xminxc*Xminxc + Yminyc*Yminyc + Zminzc*Zminzc); 
 
-				/* project into cartesian axes aligned with local poloidal plane 
-				Rhat dot (phihat cross Zhat) = 1 prescription -> (R,phi,Z) right-handed */
-				Rminrcvect[0] = cos(varphi)*Xminxc + sin(varphi)*Yminyc;
-				Rminrcvect[1] = Zminzc;
-				Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
+			/* project into cartesian axes aligned with local poloidal plane 
+			Rhat dot (phihat cross Zhat) = 1 prescription -> (R,phi,Z) right-handed */
+			Rminrcvect[0] = cos(varphi)*Xminxc + sin(varphi)*Yminyc;
+			Rminrcvect[1] = Zminzc;
+			Rminrcvect[2] = - sin(varphi)*Xminxc + cos(varphi)*Yminyc;
 
-				helitanp[0] = cos(varphi)*helitanx[0] + sin(varphi)*helitanx[1];
-				helitanp[1] = helitanx[2];
-				helitanp[2] = - sin(varphi)*helitanx[0] + cos(varphi)*helitanx[1];
-				ind = ind_param%n_modes;
-				if (ind_param/n_modes == 0) {
-					drcdkappa[0] = -rmin*cos(ind*m0_symmetry*varphi/l0)*sin(thetacoil)*cos(varphi);
-					drcdkappa[1] = -rmin*cos(ind*m0_symmetry*varphi/l0)*sin(thetacoil)*sin(varphi);
-					drcdkappa[2] = -rmin*cos(ind*m0_symmetry*varphi/l0)*cos(thetacoil);
-				}
-				else {
-					drcdkappa[0] = -rmin*sin(ind*m0_symmetry*varphi/l0)*sin(thetacoil)*cos(varphi);
-					drcdkappa[1] = -rmin*sin(ind*m0_symmetry*varphi/l0)*sin(thetacoil)*sin(varphi);
-					drcdkappa[2] = -rmin*sin(ind*m0_symmetry*varphi/l0)*cos(thetacoil);
-				}
+			helitanp[0] = cos(varphi)*helitanx[0] + sin(varphi)*helitanx[1];
+			helitanp[1] = helitanx[2];
+			helitanp[2] = - sin(varphi)*helitanx[0] + cos(varphi)*helitanx[1];
+			ind = (ind_param+1)/2;
+			if (ind_param == 0) {
+				drcdkappa[0] = -rmin*sin(thetacoil)*cos(phicoil);
+				drcdkappa[1] = -rmin*sin(thetacoil)*sin(phicoil);
+				drcdkappa[2] = -rmin*cos(thetacoil);
+			}
+			else if (ind_param%2 == 1) {
+				drcdkappa[0] = -rmin*cos(ind*m0_symmetry*phicoil/l0)*sin(thetacoil)*cos(phicoil);
+				drcdkappa[1] = -rmin*cos(ind*m0_symmetry*phicoil/l0)*sin(thetacoil)*sin(phicoil);
+				drcdkappa[2] = -rmin*cos(ind*m0_symmetry*phicoil/l0)*cos(thetacoil);
+			}
+			else {
+				drcdkappa[0] = -rmin*sin(ind*m0_symmetry*phicoil/l0)*sin(thetacoil)*cos(phicoil);
+				drcdkappa[1] = -rmin*sin(ind*m0_symmetry*phicoil/l0)*sin(thetacoil)*sin(phicoil);
+				drcdkappa[2] = -rmin*sin(ind*m0_symmetry*phicoil/l0)*cos(thetacoil);
+			}
 
-				for (row=0; row<3; row++) {
-					crossprdct[row] = drcdkappa[(row+1)%3]*helitanx[(row+2)%3] -  drcdkappa[(row+2)%3]*helitanx[(row+1)%3]; 
-				}
-				
-				Rminrc = 0.0;
-				rvectp[0] = helicoil[0]*cos(varphi) + helicoil[1]*sin(varphi);
-				rvectp[1] = helicoil[2];
-				rvectp[2] = helicoil[1]*cos(varphi) - helicoil[0]*sin(varphi);
-				Rvectp[0] = Xp[0];
-				Rvectp[1] = Xp[1];
-				Rvectp[2] = 0.0;  // coordinate defined in locally cartesian plane at point
-				rotation[0][0] = rotation[1][2] = cos(varphi); 		
-				rotation[1][0] = sin(varphi); 		
-				rotation[0][2] = -sin(varphi); 		
-				rotation[2][1] = 1.0;
-				rotation[2][0] = rotation[0][1] = rotation[2][2] = rotation[1][1] = 0.0;
-				for (row=0;row<3;row++) {
-					Rminrcvectp[row] = Rvectp[row] - rvectp[row];
-					Rminrc += pow(Rminrcvectp[row], 2.0);
-				}
-				for (row=0;row<3;row++) {
-					//Rminrcvectx[row] = rotation[0][row]*Rminrcvectp[0] + rotation[1][row]*Rminrcvectp[1] + rotation[2][row]*Rminrcvectp[2];
-					Rminrcvectx[row] = rotation[row][0]*Rminrcvectp[0] + rotation[row][1]*Rminrcvectp[1] + rotation[row][2]*Rminrcvectp[2]; // should be correct
-				}
-				Rminrc = pow(Rminrc, 0.5);
-				//printf("current = %f, Rminrc = %f\n", current, Rminrc);
-				for (row=0;row<3;row++) {
-					//printf("Rminrcvectx[%d]=%f, Rminrcvectp[%d]=%f\n", row, Rminrcvectx[row], row, Rminrcvectp[row]);
-					for (col=0; col<3; col++) {
-						shapegrad[ind_param].value[col]
-						+= crossprdct[row]*pow(10.0, -7.0)*(current/pow(Rminrc, 3.0))*( - rotation[row][col] + 3.0* Rminrcvectx[row] * Rminrcvectp[col] / pow(Rminrc, 2.0) );			
-						
-						for (dep=0; dep<2;dep++) {
-							shapegrad[ind_param].derivative[col][dep] 
-							+= crossprdct[row]*pow(10.0, -7.0)*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvectp[dep]*( rotation[row][col] - 5.0 *Rminrcvectp[row] *Rminrcvectp[col] / pow(Rminrc, 2.0) ) + 3.0 *delta(dep - col) *Rminrcvectp[row] + 3.0 * rotation[row][dep] *Rminrcvectp[col] ) ;	
-						}
+			for (row=0; row<3; row++) {
+				crossprdct[row] = drcdkappa[(row+1)%3]*helitanx[(row+2)%3] -  drcdkappa[(row+2)%3]*helitanx[(row+1)%3]; 
+				//printf("drcdkappa = %f, helitanx = %f\n", drcdkappa[(row+1)%3], helitanx[(row+2)%3]);
+			}
+			
+			Rminrc = 0.0;
+			rvectp[0] = helicoil[0]*cos(varphi) + helicoil[1]*sin(varphi);
+			rvectp[1] = helicoil[2];
+			rvectp[2] = helicoil[1]*cos(varphi) - helicoil[0]*sin(varphi);
+			Rvectp[0] = Xp[0];
+			Rvectp[1] = Xp[1];
+			Rvectp[2] = 0.0;  // coordinate defined in locally cartesian plane at point
+			rotation[0][0] = rotation[1][2] = cos(varphi); 		
+			rotation[1][0] = sin(varphi); 		
+			rotation[0][2] = -sin(varphi); 		
+			rotation[2][1] = 1.0;
+			rotation[2][0] = rotation[0][1] = rotation[2][2] = rotation[1][1] = 0.0;
+			for (row=0;row<3;row++) {
+				Rminrcvectp[row] = Rvectp[row] - rvectp[row];
+				Rminrc += pow(Rminrcvectp[row], 2.0);
+			}
+			for (row=0;row<3;row++) {
+				//Rminrcvectx[row] = rotation[0][row]*Rminrcvectp[0] + rotation[1][row]*Rminrcvectp[1] + rotation[2][row]*Rminrcvectp[2];
+				Rminrcvectx[row] = rotation[row][0]*Rminrcvectp[0] + rotation[row][1]*Rminrcvectp[1] + rotation[row][2]*Rminrcvectp[2]; // should be correct
+			}
+			Rminrc = pow(Rminrc, 0.5);
+			//printf("current = %f, Rminrc = %f\n", current, Rminrc);
+			for (row=0;row<3;row++) {
+				for (col=0; col<3; col++) {
+					gradmagfield[ind_param].value[col] 
+					+= deltaphi* ( crossprdct[row]*(current/pow(Rminrc, 3.0))*( - rotation[row][col] + 3.0* Rminrcvectx[row] * Rminrcvectp[col] / pow(Rminrc, 2.0) ) );			
+					//printf("crossprdct=%f, Rminrcvectx=%f, Rminrcvectp=%f, current= %f, Rminrc=%f, rotation = %f\n", crossprdct[row], Rminrcvectx[row], Rminrcvectp[col], current, Rminrc, rotation[row][col]);
+					//printf("what is being added: %14.14f\n", crossprdct[row]*(current/pow(Rminrc, 3.0))*( - rotation[row][col] + 3.0* Rminrcvectx[row] * Rminrcvectp[col] / pow(Rminrc, 2.0) ) );
+					for (dep=0; dep<2;dep++) {
+						//printf("%d, %d, %f\n", dep, col, delta(dep - col));
+						gradmagfield[ind_param].derivative[col][dep] 
+						+= deltaphi*crossprdct[row]*(current/pow(Rminrc, 5.0))*( 3.0*Rminrcvectp[dep]*( rotation[row][col] - 5.0 *Rminrcvectx[row] *Rminrcvectp[col] / pow(Rminrc, 2.0) ) + 3.0 *delta(dep - col) *Rminrcvectx[row] + 3.0 * rotation[row][dep] *Rminrcvectp[col] ) ;	
 					}
 				}
-
 			}
 		}
+		//printf("gradB[%d] = (%f, %f, %f)\n", ind_param, gradmagfield[ind_param].value[0], gradmagfield[ind_param].value[1], gradmagfield[ind_param].value[2]);
 	}
 	return gradmagfield;
 }
@@ -1656,7 +1337,7 @@ struct field *gradBfield(double *Xp, double varphi, struct fieldparams allparams
 		gradmagfield = shapeBcoil(Xp, varphi, allparams.diffparams[diffparam_ind1][diffparam_ind2]);
 	}
 	else if (strncmp(allparams.type, "heli", 4) == 0) {
-		gradmagfield = gradBheli(Xp, varphi, m0, allparams.constparams, allparams.intparams, diffparam_ind1);
+		gradmagfield = gradBheli(Xp, varphi, m0, allparams, diffparam_ind1);
 	}
 	return gradmagfield;
 }

@@ -12,7 +12,7 @@ int main()
 {
 	clock_t start = clock();
 	int N_gridphi_fieldperiod, N_gridphi_tor, num_turns=1, m0;
-	int *n_coils=NULL, **n_consts, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode, tor_mode, ind, row;
+	int *n_coils=NULL, **n_consts, qq=1, *qq_segs=NULL, qq_segsq=1, pol_mode, tor_mode, ind, row, col;
 	int find_axis = 1, deltaindmax = 20, deltaind;
 	int L_fixedpoints, N_line;
 	int coil_ind, seg_ind, max_coil_ind, max_seg_ind;
@@ -173,23 +173,24 @@ int main()
 			//exit(0);
 		}
 		else if (strncmp("heli", allparams.type, 5) == 0 ) {
-			Xp->loc[0] = 1.05; Xp->loc[1]= 0.0; //NCSX
-			delta = 0.01;
+			Xp->loc[0] = 0.95; Xp->loc[1]= 0.0; 
+			delta = 0.001;
 			printf("Xp = (%f, %f)\n", Xp->loc[0], Xp->loc[1]);
-			printf("n_coils[3] = %d\n", n_coils[3]);
-			realBpointgrad[1] = *(gradBfield(Xp->loc, phichec, allparams, 0, 0));
+			printf("n_coils[3] = %d\n", allparams.n_coils);
+			Bpointgrad = gradBfield(Xp->loc, phichec, allparams, 0, 0);
 			Bpoint = Bfield(Xp->loc, phichec, allparams); 
-			coils[0][0][3] += delta;
-			Bpointdelta[1][1] = Bfield(Xp->loc, phichec, allparams); 
-			coils[0][0][3] -= 2.0*delta;
-			Bpointdelta[1][0] = Bfield(Xp->loc, phichec, allparams); 
-			coils[0][0][3] += delta;
-			for (row = 0; row<3; row++) 
-			checkBpointgrad[row] = ( Bpointdelta[2][1].value[row] - Bpointdelta[2][0].value[row] ) / (2.0*delta);
-			printf("checkgradB = (%f, %f, %f) (direct), (%f, %f, %f) (FD) \n", realBpointgrad[1].value[0], realBpointgrad[1].value[1], realBpointgrad[1].value[2], checkBpointgrad[0], checkBpointgrad[1], checkBpointgrad[2]);
-			Bpointdelta[2][1] = Bfield(Xp->loc, phichec, allparams); 
-			Bpointdelta[2][0] = Bfield(Xp->loc, phichec, allparams); 
-			printstructfield("Bpoint =", &Bpoint);
+			for (row = 0; row<7; row++) {
+				allparams.diffparams[0][0][row] += delta;
+				Bpointdelta[1][1] = Bfield(Xp->loc, phichec, allparams); 
+				allparams.diffparams[0][0][row] -= 2.0*delta;
+				Bpointdelta[1][0] = Bfield(Xp->loc, phichec, allparams); 
+				allparams.diffparams[0][0][row] += delta;
+				for (col=0;col<3;col++) 
+				checkBpointgrad[col] = ( Bpointdelta[1][1].value[col] - Bpointdelta[1][0].value[col] ) / (2.0*delta);
+				printf("checkgradB = (%14.14f, %14.14f, %14.14f) (direct), (%f, %f, %f) (FD) \n", Bpointgrad[row].value[0], Bpointgrad[row].value[1], Bpointgrad[row].value[2], checkBpointgrad[0], checkBpointgrad[1], checkBpointgrad[2]);
+			}
+			//Bpointdelta[2][1] = Bfield(Xp->loc, phichec, allparams); 
+			//Bpointdelta[2][0] = Bfield(Xp->loc, phichec, allparams); 
 		}
 	}
 	if (find_axis == 1) {
@@ -246,6 +247,7 @@ int main()
 		}
 		else if (strncmp(allparams.type, "heli", 4) == 0) {
 			Xp->loc[0] = 0.87; Xp->loc[1]= 0.015;  // Reiman 6-fold island chain
+			printstructposition("Xp initial guess = \n", Xp);
 		}
 		Xp->tangent[0][0]=1.0; Xp->tangent[0][1]=0.0; Xp->tangent[1][0]=0.0; Xp->tangent[1][1]=1.0;
 		if (tor_mode % m0 == 0) 
@@ -270,7 +272,7 @@ int main()
 		//for (col=0; col< L_fixedpoints; col++) {
 		//	ext_center[col].q0_index = 0;
 		//}
-		ext_center = solve_islandcenter_full(island_center[0].loc, axis_phi0, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
+		ext_center = solve_islandcenter_full(island_center[0].loc, axis, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
 		printf("Residue of fixed point = %f\n", Res);
 		//storeq = ext_center->q0_index;
 		printf("Left function that solves for the magnetic island centre (O point) in extended way\n");
@@ -321,20 +323,15 @@ int main()
 		printf("N points per field period = %d\n", N_gridphi_fieldperiod);
 	
 		if (calcshap == 'y') {
-			shapecirc = calloc(3,sizeof(double));
-			shapeRes = calloc(3,sizeof(double));
-			realshapecirc = calloc(3,sizeof(double));
-			shapetan = malloc(L_fixedpoints*sizeof(double));
-			shapewidth = malloc(L_fixedpoints*sizeof(double));
-			realshapetan = malloc(L_fixedpoints*sizeof(double));
-			realshapewidth = malloc(L_fixedpoints*sizeof(double));
-			for (ind=0; ind<L_fixedpoints; ind++) {
-				shapetan[ind] = calloc(3, sizeof(double));
-				shapewidth[ind] = calloc(3,sizeof(double));
-				realshapewidth[ind] = calloc(3,sizeof(double));
-				realshapetan[ind] = calloc(3,sizeof(double));
-			}
 			if (strncmp(allparams.type, "Reim", 4) == 0) {
+				shapecirc = calloc(3,sizeof(double));
+				shapeRes = calloc(3,sizeof(double));
+				shapetan = malloc(L_fixedpoints*sizeof(double));
+				shapewidth = malloc(L_fixedpoints*sizeof(double));
+				for (ind=0; ind<L_fixedpoints; ind++) {
+					shapetan[ind] = calloc(3, sizeof(double));
+					shapewidth[ind] = calloc(3,sizeof(double));
+				}
 				Reimparam = **coils;
 				solve_gradRes(shapeRes, Bfield_island, island_center_saved, lambdamu_saved, L_fixedpoints, N_gridphi_fieldperiod, allparams, 0, 0) ;
 				printf("Entering function that solves for the gradient of the circumference\n");
@@ -354,7 +351,48 @@ int main()
 					}
 				}
 			}
+			else if (strncmp(allparams.type, "heli", 4) == 0) {
+				shapecirc = calloc(7,sizeof(double));
+				shapeRes = calloc(7,sizeof(double));
+				shapetan = malloc(L_fixedpoints*sizeof(double));
+				shapewidth = malloc(L_fixedpoints*sizeof(double));
+				for (ind=0; ind<L_fixedpoints; ind++) {
+					shapetan[ind] = calloc(7, sizeof(double));
+					shapewidth[ind] = calloc(7,sizeof(double));
+				}
+				solve_gradRes(shapeRes, Bfield_island, island_center_saved, lambdamu_saved, L_fixedpoints, N_gridphi_fieldperiod, allparams, 0, 0) ;
+				printf("Entering function that solves for the gradient of the circumference\n");
+				solve_gradcirc(shapecirc, Bfield_island, ext_center, &lambda, L_fixedpoints, N_gridphi_fieldperiod, allparams, 0, 0) ;
+				printf("<--\n");
+				printf("Entering function that solves for the gradient of Σ\n");
+				solve_gradtangent(shapetan, Bfield_island, ext_center, lambdaQ, mu, L_fixedpoints, *q0_index, N_gridphi_fieldperiod, allparams, 0, 0) ;
+				printf("<--\n");
+				for (row = 0; row<7; row++) {
+					//shapeRes[row]*=(-1.0/4);
+					for (ind=0; ind<L_fixedpoints; ind++) {
+						shapewidth[ind][row] = width[ind]* ( shapecirc[row]/circ - shapetan[ind][row]/Sigma[ind] );
+						printf("shapeRes = %f\n", shapeRes[row]);
+						printf("shapecirc = %f\n", shapecirc[row]);
+						printf("shapetan[%d] = %f\n", ind, shapetan[ind][row]);
+						printf("shapewidth[%d] = %f\n", ind, shapewidth[ind][row]);
+					}
+				}
+			
+			}
 			else if (strncmp(allparams.type, "coil", 4) == 0) {
+				shapecirc = calloc(3,sizeof(double));
+				shapeRes = calloc(3,sizeof(double));
+				realshapecirc = calloc(3,sizeof(double));
+				shapetan = malloc(L_fixedpoints*sizeof(double));
+				shapewidth = malloc(L_fixedpoints*sizeof(double));
+				realshapetan = malloc(L_fixedpoints*sizeof(double));
+				realshapewidth = malloc(L_fixedpoints*sizeof(double));
+				for (ind=0; ind<L_fixedpoints; ind++) {
+					shapetan[ind] = calloc(3, sizeof(double));
+					shapewidth[ind] = calloc(3,sizeof(double));
+					realshapewidth[ind] = calloc(3,sizeof(double));
+					realshapetan[ind] = calloc(3,sizeof(double));
+				}
 				FILE *file_shapecirc, *file_shapetan, *file_shapewidth;
 				if ( (file_shapecirc = fopen("shape_circ.txt", "w") ) == NULL ) {	
 					printf("Oups: couldn't open shape_circ.txt\n");
@@ -374,7 +412,7 @@ int main()
 					for ( seg_ind=0; seg_ind < max_seg_ind  ; seg_ind++) {
 						printf("seg_ind=%d/%d\n", seg_ind, allparams.intparams[coil_ind]);
 						printf("Entering function that solves for the gradient of the circumference-->\n");
-						printf("n_diffparams = %d\n", allparams.n_diffparams);
+						printf("n_diffparams = %d\n", allparams.n_diff);
 						solve_gradcirc(shapecirc, Bfield_island, ext_center, &lambda, L_fixedpoints, N_gridphi_fieldperiod, allparams, coil_ind, seg_ind) ;
 						//printf("shapecirc_%d = %f\n", row, shapecirc[0]);
 						printf("<--\n");
@@ -436,17 +474,17 @@ int main()
 		printf("time after solving for shape gradient: %f\n", (double) (int5-start)/CLOCKS_PER_SEC);
 		
 		if (checshap == 'y') {
-			newSigma[0] = malloc(L_fixedpoints*sizeof(double));
-			newSigma[1] = malloc(L_fixedpoints*sizeof(double));
-			checkshapeRes = calloc(3,sizeof(double));
-			checkshapecirc = calloc(3,sizeof(double));
-			checkshapewidth = malloc(L_fixedpoints*sizeof(double));
-			checkshapeSigma = malloc(L_fixedpoints*sizeof(double));
-			for (ind=0; ind<L_fixedpoints; ind++) {
-				checkshapewidth[ind] = calloc(3,sizeof(double));
-				checkshapeSigma[ind] = calloc(3,sizeof(double));
-			}
 			if (strncmp(allparams.type, "Reim", 4) == 0) {
+				newSigma[0] = malloc(L_fixedpoints*sizeof(double));
+				newSigma[1] = malloc(L_fixedpoints*sizeof(double));
+				checkshapeRes = calloc(3,sizeof(double));
+				checkshapecirc = calloc(3,sizeof(double));
+				checkshapewidth = malloc(L_fixedpoints*sizeof(double));
+				checkshapeSigma = malloc(L_fixedpoints*sizeof(double));
+				for (ind=0; ind<L_fixedpoints; ind++) {
+					checkshapewidth[ind] = calloc(3,sizeof(double));
+					checkshapeSigma[ind] = calloc(3,sizeof(double));
+				}
 				delta = pow(10.0, powdeltain);
 				for (deltaind =0; deltaind<deltaindmax; deltaind++) {
 					for (row=0; row<3; row++) {
@@ -464,7 +502,7 @@ int main()
 						//ext_center_up = malloc(L_fixedpoints*sizeof(struct ext_position));
 						//ext_center_down = malloc(L_fixedpoints*sizeof(struct ext_position));
 // since q0_index already contains a non-zero value, it won't be reassigned here
-						ext_center_up = solve_islandcenter_full(island_center_up[0].loc, axis_phi0, &num_turns, m0, L_fixedpoints, &Resup, q0_index, N_gridphi_fieldperiod, Bfield_island);
+						ext_center_up = solve_islandcenter_full(island_center_up[0].loc, axis, &num_turns, m0, L_fixedpoints, &Resup, q0_index, N_gridphi_fieldperiod, Bfield_island);
 						//printf("q0_index = %d\n", *q0_index);
 						//printf("<--\n");
 						newwidth[1] = calc_islandwidth(&circup, newSigma[1], ext_center_up, m0, L_fixedpoints, pol_mode);
@@ -474,7 +512,7 @@ int main()
 						//printf("%10.10f %10.10f\n", coils[0][0][row], savedcoilseg);
 						island_center_down = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
 // since q0_index already contains a non-zero value, it won't be reassigned here
-						ext_center_down = solve_islandcenter_full(island_center_down[0].loc, axis_phi0, &num_turns, m0, L_fixedpoints, &Resdown, q0_index, N_gridphi_fieldperiod, Bfield_island);
+						ext_center_down = solve_islandcenter_full(island_center_down[0].loc, axis, &num_turns, m0, L_fixedpoints, &Resdown, q0_index, N_gridphi_fieldperiod, Bfield_island);
 						//printf("q0_index = %d\n", *q0_index);
 						//ext_center_down->q0_index = storeq;
 						newwidth[0] = calc_islandwidth(&circdown, newSigma[0], ext_center_down, m0, L_fixedpoints, pol_mode);
@@ -486,7 +524,7 @@ int main()
 						Resdown = log(Resdown);
 						//printf("circdown = %f\n", circdown);
 						//printf("circ = %f\n", circ);
-						//printf("delta = %f\nsavedcoilseg = %f\n", delta, savedcoilseg);
+						printf("delta = %f\nsavedcoilseg = %f\n", delta, savedcoilseg);
 						//coils[0][0][row] += (delta*savedcoilseg);
 						//printf("%10.10f %10.10f\n", coils[0][0][row], savedcoilseg);
 						checkshapecirc[row] = ( circup - circdown ) / (2.0*delta*savedcoilseg);
@@ -510,7 +548,87 @@ int main()
 						normgradwidth[row] = shapewidth[0][row]/width[0];
 						normgradcirc[row] = shapecirc[row]/circ;
 						normgradSigma[row] = shapetan[0][row]/Sigma[0];
-						normgradRes[row] = -0.25*shapeRes[row]/Res;
+						normgradRes[row] = 0.25*shapeRes[row]/Res; // I don't yet understand why this is not -0.25
+						//checknormgradwidth[row][deltaind] = checkshapewidth[0][row]/width[0];
+						//checknormgradcirc[row][deltaind] = checkshapecirc[row]/circ;
+						//checknormgradSigma[row][deltaind] = checkshapeSigma[0][row]/Sigma[0];
+						checknormgradwidth[row][deltaind] = checkshapewidth[0][row];
+						checknormgradcirc[row][deltaind] = checkshapecirc[row];
+						checknormgradSigma[row][deltaind] = checkshapeSigma[0][row];
+						checknormgradRes[row][deltaind] = checkshapeRes[row];
+					}
+					delta *= (pow(10.0, steppowdelta/deltaindmax));
+				}
+			}
+			else if (strncmp(allparams.type, "heli", 4) == 0) {
+				newSigma[0] = malloc(L_fixedpoints*sizeof(double));
+				newSigma[1] = malloc(L_fixedpoints*sizeof(double));
+				checkshapeRes = calloc(7,sizeof(double));
+				checkshapecirc = calloc(7,sizeof(double));
+				checkshapewidth = malloc(L_fixedpoints*sizeof(double));
+				checkshapeSigma = malloc(L_fixedpoints*sizeof(double));
+				for (ind=0; ind<L_fixedpoints; ind++) {
+					checkshapewidth[ind] = calloc(7,sizeof(double));
+					checkshapeSigma[ind] = calloc(7,sizeof(double));
+				}
+				delta = pow(10.0, powdeltain);
+				for (deltaind =0; deltaind<deltaindmax; deltaind++) {
+					for (row=0; row<7; row++) {
+						printf("gradient with respect to parameter #%d\n", row+1);
+						//savedcoilseg = allparams.diffparams[0][0][row];
+						savedcoilseg = 0.001;
+						//savedcoilseg = Res / (0.25*shapeRes[row]);
+						allparams.diffparams[0][0][row] += (delta*savedcoilseg);
+						island_center_up = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
+// since q0_index already contains a non-zero value, it won't be reassigned here
+						ext_center_up = solve_islandcenter_full(island_center_up[0].loc, axis, &num_turns, m0, L_fixedpoints, &Resup, q0_index, N_gridphi_fieldperiod, Bfield_island);
+						//printf("q0_index = %d\n", *q0_index);
+						//printf("<--\n");
+						newwidth[1] = calc_islandwidth(&circup, newSigma[1], ext_center_up, m0, L_fixedpoints, pol_mode);
+						allparams.diffparams[0][0][row] -= (delta*savedcoilseg);
+						allparams.diffparams[0][0][row] -= (delta*savedcoilseg);
+						//printf("circup = %f\n", circup);
+						//printf("%10.10f %10.10f\n", coils[0][0][row], savedcoilseg);
+						island_center_down = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
+// since q0_index already contains a non-zero value, it won't be reassigned here
+						ext_center_down = solve_islandcenter_full(island_center_down[0].loc, axis, &num_turns, m0, L_fixedpoints, &Resdown, q0_index, N_gridphi_fieldperiod, Bfield_island);
+						//printf("q0_index = %d\n", *q0_index);
+						//ext_center_down->q0_index = storeq;
+						newwidth[0] = calc_islandwidth(&circdown, newSigma[0], ext_center_down, m0, L_fixedpoints, pol_mode);
+						circup =      log( circup);
+						circdown =    log(circdown);
+						printf("Resdown, Res, Resup = %f, %f, %f\n", Resdown, Res, Resup);
+						printf("gradRes = %f, %f (num, dir)\n", (Resup - Resdown)/(2.0*delta*savedcoilseg), -0.25*shapeRes[row]) ;
+						Resup = log(Resup);
+						Resdown = log(Resdown);
+						//printf("circdown = %f\n", circdown);
+						//printf("circ = %f\n", circ);
+						printf("delta = %f\nsavedcoilseg = %f\n", delta, savedcoilseg);
+						//coils[0][0][row] += (delta*savedcoilseg);
+						//printf("%10.10f %10.10f\n", coils[0][0][row], savedcoilseg);
+						checkshapecirc[row] = ( circup - circdown ) / (2.0*delta*savedcoilseg);
+						checkshapeRes[row] = ( Resup - Resdown ) / (2.0*delta*savedcoilseg);
+						allparams.diffparams[0][0][row] += (delta*savedcoilseg);
+						//checkshapecirc[row] = ( circup - circ ) / (delta*savedcoilseg);
+						for (ind=0; ind<L_fixedpoints; ind++) {
+							newwidth[0][ind] = log(newwidth[0][ind]);
+							newwidth[1][ind] = log(newwidth[1][ind]);
+							newSigma[0][ind] = log(newSigma[0][ind]);
+							newSigma[1][ind] = log(newSigma[1][ind]);
+							checkshapeSigma[ind][row] = ( newSigma[1][ind] - newSigma[0][ind] ) / (2.0*delta*savedcoilseg);
+							checkshapewidth[ind][row] = ( newwidth[1][ind] - newwidth[0][ind] ) / (2.0*delta*savedcoilseg);
+							//checkshapeSigma[ind][row] = ( newSigma[1][ind] - Sigma[ind] ) / (delta*savedcoilseg);
+							//checkshapewidth[ind][row] = ( newwidth[1][ind] - width[ind] ) / (delta*savedcoilseg);
+							printf("yolo\n");
+							printf("shapeRes = %9.9f (direct) %9.9f (FD)\n", 0.25*shapeRes[row]/Res, checkshapeRes[row]);
+							printf("shapecirc = %9.9f (direct) %9.9f (FD)\n", shapecirc[row]/circ, checkshapecirc[row]);
+							printf("shapetan[%d] = %9.9f (direct) %9.9f (FD)\n", ind, shapetan[ind][row]/Sigma[ind], checkshapeSigma[ind][row]);   
+							printf("shapewidth[%d] = %9.9f (direct) %9.9f (FD)\n", ind, shapewidth[ind][row]/width[ind], checkshapewidth[ind][row]);
+						}
+						normgradwidth[row] = shapewidth[0][row]/width[0];
+						normgradcirc[row] = shapecirc[row]/circ;
+						normgradSigma[row] = shapetan[0][row]/Sigma[0];
+						normgradRes[row] = 0.25*shapeRes[row]/Res; // I don't yet understand why this is not -0.25
 						//checknormgradwidth[row][deltaind] = checkshapewidth[0][row]/width[0];
 						//checknormgradcirc[row][deltaind] = checkshapecirc[row]/circ;
 						//checknormgradSigma[row][deltaind] = checkshapeSigma[0][row]/Sigma[0];
@@ -523,9 +641,15 @@ int main()
 				}
 			}
 			else if (strncmp(allparams.type, "coil", 4) == 0) {
+				newSigma[0] = malloc(L_fixedpoints*sizeof(double));
+				newSigma[1] = malloc(L_fixedpoints*sizeof(double));
+				checkshapeRes = calloc(3,sizeof(double));
+				checkshapecirc = calloc(3,sizeof(double));
 				checkshapewidth = malloc(L_fixedpoints*sizeof(double));
+				checkshapeSigma = malloc(L_fixedpoints*sizeof(double));
 				for (ind=0; ind<L_fixedpoints; ind++) {
 					checkshapewidth[ind] = calloc(3,sizeof(double));
+					checkshapeSigma[ind] = calloc(3,sizeof(double));
 				}
 				FILE *file_checkshapewidth;
 				if ( (file_checkshapewidth = fopen("check_shape_width.txt", "w") ) == NULL ) {	
@@ -541,12 +665,12 @@ int main()
 						for (row=0; row<3; row++) {
 							coils[coil_ind][seg_ind][row] += (delta) ;
 							island_center_up = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
-							ext_center_up = solve_islandcenter_full(island_center_up[0].loc, axis_phi0, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
+							ext_center_up = solve_islandcenter_full(island_center_up[0].loc, axis, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
 							//circup = 0.0;
 							newwidth[1] = calc_islandwidth(&circup, newSigma[1], ext_center_up, m0, L_fixedpoints, pol_mode);
 							coils[coil_ind][seg_ind][row] -= (2.0*delta) ;
 							island_center_down = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
-							ext_center_down = solve_islandcenter_full(island_center_down[0].loc, axis_phi0, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
+							ext_center_down = solve_islandcenter_full(island_center_down[0].loc, axis, &num_turns, m0, L_fixedpoints, &Res, q0_index, N_gridphi_fieldperiod, Bfield_island);
 							//circdown = 0.0;
 							newwidth[0] = calc_islandwidth(&circdown, newSigma[0], ext_center_down, m0, L_fixedpoints, pol_mode);
 							coils[coil_ind][seg_ind][row] += (delta) ;
