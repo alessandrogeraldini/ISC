@@ -191,7 +191,8 @@ double *derivative_gradtangent(struct field *Bparg, struct field *gradBparg, str
 		for (row=0;row<2;row++) {
 			extraterm = 0.0;
 			for (col=0;col<2;col++) {
-				extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] ) ) ;
+		    		extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] - Bparg->derivative[row][col]*gradBparg[pro].value[2]/Bparg->value[2] + 2.0*Bparg->derivative[2][col]*Bparg->value[row]*gradBparg[pro].value[2]/(Bparg->value[2]*Bparg->value[2]) ) ) ;
+				//extraterm += ( sperp->loc[col] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] ) ) ;
 			}
 			adjfunc[pro] += ( lambdaarg->loc[row] * Xparg->loc[0] 
 			* ( - gradBparg[pro].value[row] + gradBparg[pro].value[2]* Bparg->value[row] / Bparg->value[2] ) 
@@ -214,7 +215,7 @@ double *derivative_gradRes(struct field *Bparg, struct field *gradBparg, struct 
 	    for (dep = 0; dep<2; dep++) {
 	    	extraterm = 0.0;
 	    	for (row=0;row<2;row++) {
-		    extraterm += ( lambdaarg->tangent[row][dep] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] ) ) ;
+		    extraterm += ( lambdaarg->tangent[row][dep] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] - Bparg->derivative[row][col]*gradBparg[pro].value[2]/Bparg->value[2] + 2.0*Bparg->derivative[2][col]*Bparg->value[row]*gradBparg[pro].value[2]/(Bparg->value[2]*Bparg->value[2]) ) ) ;
 	    	}
 	    	adjfunc[pro] -= ( Xparg->tangent[col][dep] * extraterm ); 
 	    }
@@ -280,7 +281,7 @@ void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldpar
 	dXp[0] = derivative_center(Bfield_saved, Xp);
 	//printstructposition("dXp ", dXp[0]);
 	*Xp = addstructs(1.0, &Xpold, 0.5*dvarphi, dXp[0]);
-	//printf("after 1st segment of RK iteratiion: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
+	//printf("after 1st segment of RK iteration: Xp->loc=(%f, %f)\n", Xp->loc[0], Xp->loc[1]);
 	Bfield_saved[1] = Bfield(Xp->loc, varphi + 0.5*dvarphi, allparams);
 	dXp[1] = derivative_center(Bfield_saved+1, Xp);
 	free(Xp->tangent[0]); free(Xp->tangent[1]); free(Xp->tangent);

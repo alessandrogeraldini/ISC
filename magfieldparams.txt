@@ -1,8 +1,7 @@
-type heli
-periods 5
-ncoils 2
-ndiff 8
-consts 2 1600
-params 1.0 0.3
-0.0000000000000000 0.0 0.0 0.0 0.0 0.0 0.0 -210000.0
-1.5707963267948966 0.0 0.0 0.0 0.0 0.0 0.0 210000.0
+type Reim
+periods 1
+ncoils 1
+ndiff 3
+const 3 6
+params 
+0.15 0.38 0.01

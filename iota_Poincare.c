@@ -7,11 +7,11 @@
 #include <gsl/gsl_fit.h>
 
 //void iotaprofile(double RRin, double r_interval, int n_points, int m0_fieldperiods, int N_gridphi_fieldperiod, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs);
-void iotaprofile(char *type, struct position axis, int m0_fieldperiods, int N_gridphi_fieldperiod, double *rmin, double *zmin, double *iota, double ***coils, int n_coils, int *n_segs) {
+void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldperiod, double *rmin, double *zmin, double *iota, struct fieldparams allparams) {
 	/* declarations */
 	clock_t initial_t = clock();
 	//int N_gridphi_fieldperiod=20, field_periods=3; // now in separate file as defined constants
-	int i=0, i_periods=0, ind, include_centre=1, number_field_periods = 50*m0_fieldperiods;
+	int i=0, i_periods=0, ind, include_centre=1, number_field_periods = 300;
 	int number_turns = 0, N_gridphi_tor = N_gridphi_fieldperiod*m0_fieldperiods;
 	int countlines=0, indices = number_field_periods*N_gridphi_fieldperiod, sizestring=100, nn;
 	struct position Xp, *fieldcentre;
@@ -56,7 +56,7 @@ void iotaprofile(char *type, struct position axis, int m0_fieldperiods, int N_gr
 		for (ind=0; ind<N_gridphi_fieldperiod; ind++) {
 			Bfield_axis[ind] = malloc(4*sizeof(struct field));
 		}
-		fieldcentre = solve_magneticaxis(type, coils, n_coils, n_segs, Bfield_axis, &axis, N_gridphi_fieldperiod, m0_fieldperiods);
+		fieldcentre = solve_magneticaxis(allparams, Bfield_axis, &axis, N_gridphi_fieldperiod);
 		linalg2x2(axis.tangent, evec, eval, &det, &trace);
 		printf("evec=%f\n", evec[0][0]);
 		iota_axis = -eval[1]*m0_fieldperiods/(2.0*M_PI);
@@ -99,7 +99,8 @@ void iotaprofile(char *type, struct position axis, int m0_fieldperiods, int N_gr
 				phidata[i_periods*N_gridphi_fieldperiod + i] = varphi;
 				//printf("%f\t%f\n", angle[i], phidata[i]);
 				angle_old = angle_round_axis;
-				RK4step(&Xp, varphi, dvarphi, type, m0_fieldperiods, coils, n_coils, n_segs, Bfield_axis[i]);
+				RK4step(&Xp, varphi, dvarphi, allparams, Bfield_axis[i]);
+//void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldparams allparams, struct field *Bfield_saved) {
 				//printstructposition("fieldcentre", fieldcentre+i);
 				varphi += dvarphi;
 			}

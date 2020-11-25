@@ -774,7 +774,7 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 		DECLARATIONS
 	*/
 	double divB;
-	double ***helicoil, helitangent[3], helitangentx[3];
+	double helicoil[4], helitangent[3], helitangentx[3];
 	double **AA, **BB, thetacoil, phicoil, Rmaj, rmin, deltaphi, dthetadphi;
 	int ind, l0=2, n_coil = 2, *n_paramstemp, n_diff;
 	struct field magfield, magfielddelta[3];
@@ -801,6 +801,7 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 	
 	coils = allparams.diffparams;
 	n_coils = allparams.n_coils;
+	n_diff = allparams.n_diff;
 	intparams = allparams.intparams;
 	
 	for (row=0;row<3;row++) {
@@ -937,28 +938,24 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 				}
 			}
 		}
-		n_paramstemp = malloc(n_coil*sizeof(double));
-		helicoil = malloc(n_coil*sizeof(double));
-		l0 = intparams[0];
-		n_coil = allparams.n_coils ; //intparams[0];
-		n_diff = allparams.n_diff;
+		n_paramstemp = malloc(n_coils*sizeof(double));
+		l0 = allparams.intparams[0];
+		N_gridphi_toroidalturn = allparams.intparams[1];
 		//printf("l0=%d\n", l0);
 		//printf("m0=%d\n", m0_symmetry);
-		//printf("n_coil=%d\n", n_coil);
 		//printf("n_diff=%d\n", n_diff);
-		N_gridphi_toroidalturn = intparams[1];
 		/* This is a pretty low resolution but from 
 		   Hanson and Cary's rotational transform 
 		   on axis it appears what they may have used
 		   (at the time higher res was prob tough) */
 		deltaphi = 2.0*M_PI/N_gridphi_toroidalturn;
-		AA = malloc(n_coil*sizeof(double));
-		BB = malloc(n_coil*sizeof(double));
+		AA = malloc(n_coils*sizeof(double));
+		BB = malloc(n_coils*sizeof(double));
 		Rmaj = allparams.constparams[0];
 		rmin = allparams.constparams[1];
 		//printf("Rmaj = %f, rmin = %f\n", Rmaj, rmin);
 		//printf("Ngridphi = %d\n", N_gridphi_toroidalturn);
-		for (coil_index=0;coil_index<n_coil;coil_index++)
+		for (coil_index=0;coil_index<n_coils;coil_index++)
 		{
 			//printf("coil_index=%d/%d\n", coil_index, n_coil);
 			
@@ -968,11 +965,10 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 			BB[coil_index][0] = 0.0;
 			for (row=1; row<n_diff-1; row++) {
 				if (row%2 == 1)  AA[coil_index][(row+1)/2] = coils[coil_index][0][row];
-				else BB[coil_index][(row)/2] = coils[coil_index][0][row];
+				else BB[coil_index][row/2] = coils[coil_index][0][row];
 			}
 			//for (row=0; row<n_diff/2; row++) printf("AA[%d][%d]=%10.10f, BB[%d][%d]=%10.10f\n", coil_index, row, AA[coil_index][row], coil_index, row, BB[coil_index][row]);
 			n_paramstemp[coil_index] = N_gridphi_toroidalturn*l0; 
-			helicoil[coil_index] = malloc(n_paramstemp[coil_index]*sizeof(double));
 			//printf("%d=%d\n", 3 + 2*n_modes, n_params);
 			current = coils[coil_index][0][n_diff-1]*1.0e-7;
 			//printf("current = %f\n", current);
@@ -983,18 +979,17 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 			for (coilseg_index=0;coilseg_index<l0*N_gridphi_toroidalturn;coilseg_index++)
 			{
 				//printf("coilseg_index = %d/%d\n", coilseg_index, l0*N_gridphi_toroidalturn);
-				helicoil[coil_index][coilseg_index] = malloc(4*sizeof(double));
 				phicoil = coilseg_index*deltaphi;
 				thetacoil = m0_symmetry*phicoil/l0;
 				dthetadphi = (double) m0_symmetry/l0;
-				for (ind=0;ind<4;ind++) {
+				for (ind=0;ind<n_diff/2;ind++) {
 					thetacoil  += (AA[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0));
 					dthetadphi += ( ind*m0_symmetry*(-AA[coil_index][ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[coil_index][ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
 				}
-				helicoil[coil_index][coilseg_index][0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
-				helicoil[coil_index][coilseg_index][1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
-				helicoil[coil_index][coilseg_index][2] =   -rmin*sin(thetacoil) ;
-				helicoil[coil_index][coilseg_index][3] =   current; 
+				helicoil[0] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil);
+				helicoil[1] = ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil);
+				helicoil[2] =   -rmin*sin(thetacoil) ;
+				helicoil[3] =   current; 
 				helitangentx[0] = - ( Rmaj + rmin*cos(thetacoil) )* sin(phicoil) - rmin*sin(thetacoil)*cos(phicoil)*dthetadphi;
 				helitangentx[1] = ( Rmaj + rmin*cos(thetacoil) )* cos(phicoil) - rmin*sin(thetacoil)*sin(phicoil)*dthetadphi;
 				helitangentx[2] =   -rmin*cos(thetacoil)*dthetadphi ;
@@ -1002,9 +997,9 @@ struct field Bfield(double *Xp, double varphi, struct fieldparams allparams) {
 				//printf("helitangentx = (%f %f %f)\n", helitangentx[0], helitangentx[1], helitangentx[2]);
 				//printf("Rmaj = %f, rmin = %f, thetacoil  %f, phicoil = %f, dthetadphi = %f\n", Rmaj, rmin, thetacoil, phicoil, dthetadphi);
 				//printf("intparams=%d\n", intparams);
-				Xminxc = XX - helicoil[coil_index][coilseg_index][0];
-				Yminyc = YY - helicoil[coil_index][coilseg_index][1]; 
-				Zminzc = ZZ - helicoil[coil_index][coilseg_index][2]; 
+				Xminxc = XX - helicoil[0];
+				Yminyc = YY - helicoil[1]; 
+				Zminzc = ZZ - helicoil[2]; 
 				Rminrc = sqrt(Xminxc*Xminxc + Yminyc*Yminyc + Zminzc*Zminzc); 
 
 				/* project into cartesian axes aligned with local poloidal plane 
@@ -1186,7 +1181,7 @@ struct field *gradBheli(double *Xp, double varphi, int m0_symmetry, struct field
 			thetacoil = m0_symmetry*phicoil/l0;
 			dthetadphi = m0_symmetry/(1.0*l0);
 			//printf("m0_symmetry = %d\n", m0_symmetry);
-			for (ind=0;ind<4;ind++) {
+			for (ind=0;ind<n_diff/2;ind++) {
 				thetacoil  += (AA[ind]*cos(ind*m0_symmetry*phicoil/l0) + BB[ind]*sin(ind*m0_symmetry*phicoil/l0));
 				dthetadphi += ( ind*m0_symmetry*(-AA[ind]*sin(ind*m0_symmetry*phicoil/l0) + BB[ind]*cos(ind*m0_symmetry*phicoil/l0))/l0 );
 			}

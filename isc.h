@@ -26,47 +26,33 @@ struct position {
 };
 /* contains the position and tangent maps on a point along a magnetic field line */
 
-struct ext_position {
-	double loc[2];
-	double **part_tangent;
-	double **full_tangent;
-	double **adj_part_tangent;
-	double **adj_full_tangent;
-	double *epar;
-	double *eperp;
-	int *sign;
-	int q0_index;
-	double ***long_tangent;
-	double **sperp;
-	double sperp_final[2];
-	double chord[2];
-	double chordplus[2];
-/* contains position and several different tangent maps of a point along a magnetic field line 
-   contains the eigenvector of the symmetrized full orbit tangent map (which are the island axes) 
-   contains the angle neighbouring points rotate around the island centre after a full orbit 
-   contains q0 index = number of field periods necessary for the rotation of neighbouring points to be pi/2 */
+struct ext_position { 
+// this is evaluated as a pointer for every periodic field line position in the set of symmetry phi-planes of choice
+	double loc[2]; // (R,Z) coordinates of the periodic field line at the symmetry phi-planes
+	double **part_tangent; // partial tangent map from current to next symmetry plane
+	double **full_tangent; // full orbit tangent map from current symmetry plane to the Lth one after
+	double **adj_part_tangent; // adjoint of above
+	double **adj_full_tangent; // adjoint of above 
+	// the above two are actually not necessary: the adjoint tangent map is the transpose of the inverse tangent map
+	// however, they are kept and evaluated separately (mostly because I initially did not realise this)
+	double *epar; // unit eigenvector parallel to flux surface 
+	double *eperp; // unit eigenvector perpendicular to flux surface
+	// the above are obtained from the W matrix which is obtained from the full orbit tangent map
+	double ***long_tangent; // the tangent map from the current symmetry plane to the (q0+q)th one after, for 0<=q<L
+	double **sperp; // probably unnecessary but for now I need to keep it
+	double sperp_final[2]; // ditto
+	double chord[2]; // chord joining fixed point position at previous poloidally reordered position with current one
+	double chordplus[2]; // chord joining fixed point position at current location with next poloidally reordered one
+	double width; // island width
+	double Sigma; // Sigma quantity entering in island width Sigma = epar_k+q . S_k^q . eperp_k
+	int *sign; // this is probably not necessary, I will get rid of it (DELETE unless good reason found)
+	// these final numbers are equivalent for all fixed points in the island chain
+	// this introduces a redundancy in the pointer to values of ext_position, as all values below repeat
+	//int q0_index; // number of symmetry planes one needs to follow the linearized field line for it to rotate ~=90deg
+	double circ; // circumference
+	double Res; // Residue
 };
 
-struct islandchain {
-   int L;
-   double circumference;
-   double Res;
-   double *Sigma;
-   double *width;
-};
-
-//struct field_grad {
-//	double value[3];
-//	double derivative[3][2];
-//};
-///* contains the shape gradients of the magnetic field and its derivative
-//   for coils, this structure will be an array of the same configuration as the coils */
-//   there are three gradients per parameter to take into account vector parameters (coil positions)
-//   for scalar parameters, only the first component is non-zero
-
-/* contains the gradients of several quantities needed to evaluate the island width
-   also contains the gradient of the island width
-   to be used with analytical configurations where the island can be tuned by varying a single (few) parameter(s) */ 
 
 /******         *******/
 
@@ -89,6 +75,13 @@ void printstructfield(char *name, struct field *input);
 
 double **invert2x2(double **input2x2, double* det_tangent); 
 /* returns the inverse of the 2x2 matrix input2x2, and assigns the determinant to det_tangent */
+
+void transpose2x2reassign(double **input2x2);
+
+double **transpose2x2(double **input2x2);
+
+double **adj2x2(double **input2x2, double* det_tangent); 
+/* returns the transpose of the inverse of the 2x2 matrix input2x2, and assigns the determinant to det_tangent */
 
 double **multiply2x2(double **input2x2, double **input2xn, int dims);
 /* returns the 2xdims matrix product of 2x2 matrix input1 and 2xdims matrix input2 */
@@ -171,19 +164,20 @@ void RK4_adjshapecirc(double ***shapecirc, struct position *Xp, struct position 
 struct position *solve_magneticaxis(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
 /* finds the magnetic axis using a Newton iteration */
 
-struct position *solve_magneticaxis_save(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
+//struct position *solve_magneticaxis_save(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
+void solve_magneticaxis_save(double *axisguess, struct position **centre, struct fieldparams allparams, struct field **Bfieldsaved, int N_gridphi_fieldperiod);
 /* finds the magnetic axis using a Newton iteration */
 
-void iotaprofile(char *type, struct position axis, int m0_symmetry, int N_gridphi_per_field_period, double *rmin, double *zmin, double *iota, double ***coils, int n_coils, int *n_segs) ;
+void iotaprofile(struct position axis, int m0_symmetry, int N_gridphi_per_field_period, double *rmin, double *zmin, double *iota, struct fieldparams allparams) ;
 //void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs);
 /* computes iota as a function of distance from axis in a specified direction */
 
 struct position *solve_islandcenter(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int L_fixedpoints, int N_gridphi_fieldperiod);
 /* finds the centre of an island from a nearby guess using a Newton iteration */
 
-struct position **solve_islandcenter_save(double Rguess, double Zguess, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) ;
+void solve_islandcenter_save(struct position **centre, double *Res, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) ;
 
-struct ext_position *solve_islandcenter_full(double *islandcenter, struct position *axis, int *n_turns, int m0_symmetry, int L_fixedpoints, double *Res, int *q0_index, int N_gridphi_fieldperiod, struct field **Bfield_saved);
+void extsolve_periodicfieldline(struct ext_position *ext_centre, struct position *fieldline, struct position *axis, int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod);
 /* evaluates all quantities necessary to calculate the island width */
 
 double *calc_islandwidth(double *circ, double *Sigma, struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode);

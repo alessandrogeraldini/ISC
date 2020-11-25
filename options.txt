@@ -3,4 +3,4 @@ Poincare n
 findisla y
 calcshap y
 checshap y
-checfast n
+checfast y

@@ -140,6 +140,46 @@ double **invert2x2(double **input2x2, double* pdet_tangent) {
 	return result;
 }
 
+double **transpose2x2(double **input2x2) {
+	double **result=malloc(2*sizeof(double*));
+	int i=0;
+	for (i=0;i<2;i++) {
+		result[i] = malloc(2*sizeof(double));
+	}
+	//printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
+	result[0][0] = input2x2[0][0];
+	result[1][1] = input2x2[1][1];
+	result[0][1] = input2x2[0][1];
+	result[1][0] = input2x2[1][0];
+	//printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
+	return result;
+}
+
+void transpose2x2reassign(double **input2x2) {
+	double store;
+	//printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
+	store = input2x2[1][0];
+	input2x2[1][0] = input2x2[0][1];
+	input2x2[0][1] = store;
+	//printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
+}
+
+double **adj2x2(double **input2x2, double* pdet_tangent) {
+	double **result=malloc(2*sizeof(double*));
+	int i=0;
+	for (i=0;i<2;i++) {
+		result[i] = malloc(2*sizeof(double));
+	}
+	//printf("input[0][0] =%f, input[0][1] =%f, input[1][0] =%f, input[1][1] =%f\n", input2x2[0][0], input2x2[0][1], input2x2[1][0], input2x2[1][1]);
+	*pdet_tangent = input2x2[0][0]*input2x2[1][1] - input2x2[0][1]*input2x2[1][0];
+	result[0][0] =  input2x2[1][1]/(*pdet_tangent);
+	result[1][1] =  input2x2[0][0]/(*pdet_tangent);
+	result[1][0] = -input2x2[0][1]/(*pdet_tangent);
+	result[0][1] = -input2x2[1][0]/(*pdet_tangent);
+	//printf("det =%f\n", *pdet_tangent);
+	//printf("result[0][0] =%f, result[0][1] =%f, result[1][0] =%f, result[1][1] =%f\n", result[0][0], result[0][1], result[1][0], result[1][1]);
+	return result;
+}
 
 double **multiply2x2(double **input2x2, double **input2xdims, int dims) {
 	/* has been checked to work for 2x2 matrix multiplying a 2x1 column vector (and I think for matrix multiplication too) */
