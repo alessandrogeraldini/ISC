@@ -193,7 +193,7 @@ struct position **solve_mu_tangent(struct ext_position *ext_centre, int m0_symme
 struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_position *ext_centre, struct position **mu, int m0_symmetry, int L_fixedpoints, int q0_index, int N_gridphi_fieldperiod);
 /* finds the adjoint solutions that constrain the field line to be periodic (lambdaQ) 
    and constrain the initial tangent map variation to be zero (mu) */
-struct position **solve_lambdaRes(struct field **Bfield_saved, struct position **Xp_saved, double **adjfulltangent, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod) ;
+void solve_lambdaRes(struct position **lambdaRes, struct position **Xp_saved, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, struct field **Bfield_saved) ;
 
 //void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, char *type, double *param, int num_params, int *params2) ;
 void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;

@@ -80,7 +80,7 @@ int main()
 	allparams = fetchparams();
 	m0 = allparams.m0_fieldperiods;
 	//coils = fieldparams(type, &m0, n_coils, n_consts, n_params);
-	N_gridphi_fieldperiod = 120/m0;
+	N_gridphi_fieldperiod = 60/m0;
 
 	for (ind=0; ind < *n_coils; ind++) {
 		printf("%d ", n_consts[0][ind]);
@@ -283,10 +283,14 @@ int main()
 		else 				 
 			L_fixedpoints = m0*pol_mode;
 		N_line = L_fixedpoints*N_gridphi_fieldperiod;
-		Bfield_island = malloc(N_line*sizeof(struct field));
-		Bfield_island2 = malloc(N_line*sizeof(struct field));
-		island_center_saved = malloc(N_line*sizeof(struct position));
-		island_center_saved2 = malloc(N_line*sizeof(struct position));
+		Bfield_island = malloc((N_line)*sizeof(struct field));
+		Bfield_island2 = malloc((N_line)*sizeof(struct field));
+		// the field line is periodic but the tangent map is not
+		// hence, to store both its initial and final value
+		// the island_center_saved pointer is given space for one more structure
+		// this is done for Bfield too just for convention (the last element here is undefined/useless)
+		island_center_saved = malloc((N_line)*sizeof(struct position));
+		island_center_saved2 = malloc((N_line)*sizeof(struct position));
 		for (ind=0; ind<N_line; ind++) {
 			Bfield_island[ind] = malloc(4*sizeof(struct field));
 			island_center_saved[ind] = malloc(4*sizeof(struct position));
@@ -296,14 +300,13 @@ int main()
 		printf("Entering function that solves for the magnetic island centre (O point)-->\n");
 		//island_center = solve_islandcenter(allparams, Bfield_island, Xp, L_fixedpoints, N_gridphi_fieldperiod);
 		//island_center2 = solve_islandcenter(allparams, Bfield_island2, Xp2, L_fixedpoints, N_gridphi_fieldperiod);
+		// the first guess must be contained in the location vector of the first element of island_center_saved
 		island_center_saved[0][0].loc[0] = Xp->loc[0]; island_center_saved[0][0].loc[1] = Xp->loc[1];
-		//solve_islandcenter_save(island_center_saved, &Res, allparams, Bfield_island, L_fixedpoints, N_gridphi_fieldperiod);
 		solve_islandcenter_save(island_center_saved, &Res, allparams, Bfield_island, L_fixedpoints, N_gridphi_fieldperiod);
 		island_center = malloc(L_fixedpoints*sizeof(struct position));
 		for (ind=0; ind<L_fixedpoints; ind++) island_center[ind] = island_center_saved[ind*N_gridphi_fieldperiod][0];
 		//solve_islandcenter_save(Xp2->loc, island_center_saved2, &Res2, allparams, Bfield_island2, L_fixedpoints, N_gridphi_fieldperiod);
 		printf("island center at position (%14.14f, %14.14f)\n", island_center_saved[0][0].loc[0], island_center_saved[0][0].loc[1]);
-		printf("island center at position (%14.14f, %14.14f)\n", island_center->loc[0], island_center->loc[1]);
 		printf("<--\n");
 		solve_islandcenter_save(island_center_saved, &Res, allparams, Bfield_island, L_fixedpoints, N_gridphi_fieldperiod);
 		//exit(0);
@@ -321,6 +324,10 @@ int main()
 		//}
 		printf("Entering function that solves for the magnetic island centre (O point) in extended way\n");
 		extsolve_periodicfieldline(ext_center, island_center, axis, m0, L_fixedpoints, pol_mode, q0_index, N_gridphi_fieldperiod);
+		island_center_saved[0][0].tangent[0][0] = 1.0;
+		island_center_saved[0][0].tangent[0][1] = 0.0;
+		island_center_saved[0][0].tangent[1][0] = 0.0;
+		island_center_saved[0][0].tangent[1][1] = 1.0;
 		printf("Residue of fixed point = %f\n", ext_center[0].Res);
 		//extsolve_periodicfieldline(ext_center2, axis, m0, L_fixedpoints, pol_mode, q0_index2, N_gridphi_fieldperiod, Bfield_island2);
 		printf("Residue of fixed point = %f\n", ext_center2[0].Res);
@@ -358,7 +365,14 @@ int main()
 		printf("<--\n");
 		printmat("adj_full_tangent", ext_center[0].adj_full_tangent, 2, 2);
 		printmat("full_tangent", ext_center[0].full_tangent, 2, 2);
-		lambdamu_saved = solve_lambdaRes(Bfield_island, island_center_saved, ext_center[0].adj_full_tangent, m0, L_fixedpoints, N_gridphi_fieldperiod);
+		lambdamu_saved = malloc(N_line*sizeof(struct position));
+		for (ind=0; ind<N_line; ind++) lambdamu_saved[ind] = malloc(4*sizeof(struct position));
+		lambdamu_saved[0][0].tangent[0][0] = ext_center[0].full_tangent[0][0];
+		lambdamu_saved[0][0].tangent[0][1] = ext_center[0].full_tangent[1][0];
+		lambdamu_saved[0][0].tangent[1][0] = ext_center[0].full_tangent[0][1];
+		lambdamu_saved[0][0].tangent[1][1] = ext_center[0].full_tangent[1][1];
+		printmat("full_tangent", ext_center[0].full_tangent, 2, 2);
+		solve_lambdaRes(lambdamu_saved, island_center_saved, m0, L_fixedpoints, N_gridphi_fieldperiod, Bfield_island);
 		//lambdamu_saved2 = solve_lambdaRes(Bfield_island2, island_center_saved2, ext_center2[0].adj_full_tangent, m0, L_fixedpoints, N_gridphi_fieldperiod);
 		clock_t int_afteralladjoints = clock();
 		printf("... %f seconds ...\n", (double) (int_afteralladjoints-start)/CLOCKS_PER_SEC);
@@ -598,8 +612,8 @@ int main()
 				solve_islandcenter_save(island_center_saved2, &Res2, allparams, Bfield_island2, L_fixedpoints, N_gridphi_fieldperiod);
 				printf("Res = (%f, %f)\n", Res, Res2);
 				printf("Res^2 + Res2^2 = %f\n", Res*Res+Res2*Res2);
-				lambdamu_saved = solve_lambdaRes(Bfield_island, island_center_saved, ext_center[0].adj_full_tangent, m0, L_fixedpoints, N_gridphi_fieldperiod);
-				lambdamu_saved2 = solve_lambdaRes(Bfield_island2, island_center_saved2, ext_center2[0].adj_full_tangent, m0, L_fixedpoints, N_gridphi_fieldperiod);
+				solve_lambdaRes(lambdamu_saved, island_center_saved, m0, L_fixedpoints, N_gridphi_fieldperiod, Bfield_island);
+				solve_lambdaRes(lambdamu_saved2, island_center_saved2, m0, L_fixedpoints, N_gridphi_fieldperiod, Bfield_island2);
 				solve_gradRes(shapeRes, Bfield_island, island_center_saved, lambdamu_saved, L_fixedpoints, N_gridphi_fieldperiod, allparams, coil_ind, 0) ;
 				solve_gradRes(shapeRes2, Bfield_island2, island_center_saved2, lambdamu_saved2, L_fixedpoints, N_gridphi_fieldperiod, allparams, coil_ind, 0) ;
 				shapeRes_largest = 0.0;
@@ -618,7 +632,7 @@ int main()
 					Xp->loc[1] = island_center_saved[0][0].loc[1];
 					solve_islandcenter_save(island_center_saved, &Res, allparams, Bfield_island, L_fixedpoints, N_gridphi_fieldperiod);
 					printf("Res = %f\n", Res);
-					lambdamu_saved = solve_lambdaRes(Bfield_island, island_center_saved, ext_center[0].adj_full_tangent, m0, L_fixedpoints, N_gridphi_fieldperiod);
+					solve_lambdaRes(lambdamu_saved, island_center_saved, m0, L_fixedpoints, N_gridphi_fieldperiod, Bfield_island);
 					for (row = 0; row<5; row++) shapeRes[row] = 0.0;
 					solve_gradRes(shapeRes, Bfield_island, island_center_saved, lambdamu_saved, L_fixedpoints, N_gridphi_fieldperiod, allparams, coil_ind, 0) ;
 					
