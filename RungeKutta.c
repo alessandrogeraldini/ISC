@@ -180,6 +180,24 @@ double *derivative_gradcirc(struct field *Bparg, struct field *gradBparg, struct
 	return adjfunc;
 }
 
+double **derivative_gradXp(struct field *Bparg, struct field *gradBparg, struct position *Xparg, struct position *lambdaarg, int num_params)
+{
+	double **adjfunc = malloc(2*sizeof(double));
+	int row, col;
+	adjfunc[0] = calloc(num_params,sizeof(double));
+	adjfunc[1] = calloc(num_params,sizeof(double));
+	//printf("num_params=%d\n", num_params);
+	for (row=0;row<num_params;row++) {
+		adjfunc[0][row] = 0.0;
+		adjfunc[1][row] = 0.0;
+		for (col=0;col<2;col++) {
+			adjfunc[0][row] += ( lambdaarg->tangent[col][0] * Xparg->loc[0] * ( - gradBparg[row].value[col] + gradBparg[row].value[2]*Bparg->value[col] / Bparg->value[2] ) / Bparg->value[2] );
+			adjfunc[1][row] += ( lambdaarg->tangent[col][1] * Xparg->loc[0] * ( - gradBparg[row].value[col] + gradBparg[row].value[2]*Bparg->value[col] / Bparg->value[2] ) / Bparg->value[2] );
+		}
+	}
+	return adjfunc;
+}
+
 double *derivative_gradtangent(struct field *Bparg, struct field *gradBparg, struct position *Xparg, struct position *lambdaarg, struct position *sperp, struct position *mu, int num_params)
 {
 	double *adjfunc=calloc(num_params, sizeof(double)), extraterm, Rhat[2];
@@ -302,8 +320,8 @@ void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldpar
 	for (row=0; row<4; row++) {
 		free(dXp[row].tangent[0]); free(dXp[row].tangent[1]); 
 		free(dXp[row].tangent);
-		free(dXp);
 	}
+	free(dXp);
 	return;
 }
 
@@ -601,8 +619,8 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 	double *dnumber[4];
 	double numberold[num_params]; 
 	//printf("num_params = %d\n", num_params);
-   	printf("in gradcirc eval varphi = %f\n", varphi);
-	printstructposition("Xp", Xp);
+   	//printf("in gradcirc eval varphi = %f\n", varphi);
+	//printstructposition("Xp", Xp);
 	Xpold.tangent = set_identity();
 	lambdaold.tangent = set_identity();
 	for (row = 0; row < 2; row++) {
@@ -833,8 +851,8 @@ void RK4step_gradRes(double *number, struct position *Xp, struct position *lambd
    struct field **Bpointgrad = malloc(4*sizeof(struct field));
    double *dnumber[4];
    double numberold[num_params];
-   printf("in gradRes eval varphi = %f\n", varphi);
-   printstructposition("Xp", Xp);
+   //printf("in gradRes eval varphi = %f\n", varphi);
+   //printstructposition("Xp", Xp);
    for (row = 0; row < num_params; row++) 
       numberold[row] = number[row];
    Bpointgrad[0] = gradBfield(Xp[0].loc, varphi, allparams, diffparam_ind1, diffparam_ind2);
@@ -847,4 +865,31 @@ void RK4step_gradRes(double *number, struct position *Xp, struct position *lambd
    dnumber[3] = derivative_gradRes(Bfield_saved+3, Bpointgrad[3], Xp+3, lambdamu+3, num_params);
    for (row=0;row<num_params;row++) 
       number[row] = numberold[row] + dvarphi*(dnumber[0][row]/6.0 + dnumber[1][row]/3.0 + dnumber[2][row]/3.0 + dnumber[3][row]/6.0);
+   return;
+}
+
+void RK4step_gradXp(double **number, struct position *Xp, struct position *lambdaXp, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) {
+   int row, num_params=allparams.n_diff;
+   struct field **Bpointgrad = malloc(4*sizeof(struct field));
+   double **dnumber[4];
+   double numberold[2][num_params];
+   //printf("in gradRes eval varphi = %f\n", varphi);
+   //printstructposition("Xp", Xp);
+   for (row = 0; row < num_params; row++) {
+      numberold[0][row] = number[0][row];
+      numberold[1][row] = number[1][row];
+   }
+   Bpointgrad[0] = gradBfield(Xp[0].loc, varphi, allparams, diffparam_ind1, diffparam_ind2);
+   dnumber[0] = derivative_gradXp(Bfield_saved, Bpointgrad[0], Xp, lambdaXp, num_params);
+   Bpointgrad[1] = gradBfield(Xp[1].loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+   dnumber[1] = derivative_gradXp(Bfield_saved+1, Bpointgrad[1], Xp+1, lambdaXp+1, num_params);
+   Bpointgrad[2] = gradBfield(Xp[2].loc, varphi+0.5*dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+   dnumber[2] = derivative_gradXp(Bfield_saved+2, Bpointgrad[2], Xp+2, lambdaXp+2, num_params);
+   Bpointgrad[3] = gradBfield(Xp[3].loc, varphi+dvarphi, allparams, diffparam_ind1, diffparam_ind2);
+   dnumber[3] = derivative_gradXp(Bfield_saved+3, Bpointgrad[3], Xp+3, lambdaXp+3, num_params);
+   for (row=0;row<num_params;row++) {
+      number[0][row] = numberold[0][row] + dvarphi*(dnumber[0][0][row]/6.0 + dnumber[1][0][row]/3.0 + dnumber[2][0][row]/3.0 + dnumber[3][0][row]/6.0);
+      number[1][row] = numberold[1][row] + dvarphi*(dnumber[0][1][row]/6.0 + dnumber[1][1][row]/3.0 + dnumber[2][1][row]/3.0 + dnumber[3][1][row]/6.0);
+   }
+   return;
 }

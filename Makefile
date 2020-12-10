@@ -8,11 +8,17 @@ EXTRA_LINK_FLAGS = -Wall -ffast-math -lgsl
 #EXTRA_COMPILE_FLAGS = -g -O2 -Wall -I /opt/local/include
 #EXTRA_LINK_FLAGS = -Wall -ffast-math -L /opt/local/lib -lgsl
 
-MAG: main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
-	cc $(EXTRA_LINK_FLAGS) -o MAG main.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
+ANMAG: analyze_mag.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
+	cc $(EXTRA_LINK_FLAGS) -o ANMAG analyze_mag.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
 
-main.o: main.c 
-	cc $(EXTRA_COMPILE_FLAGS) -c -o main.o main.c
+OPMAG: optimize_mag.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
+	cc $(EXTRA_LINK_FLAGS) -o OPMAG optimize_mag.o magfield.o linetodata.o RungeKutta.o findcentre.o iota_Poincare.o linalg2x2.o magfield_Dommaschk.o
+
+analyze_mag.o: analyze_mag.c 
+	cc $(EXTRA_COMPILE_FLAGS) -c -o analyze_mag.o analyze_mag.c
+
+optimize_mag.o: optimize_mag.c 
+	cc $(EXTRA_COMPILE_FLAGS) -c -o optimize_mag.o optimize_mag.c
 
 magfield.o: magfield.c 
 	cc $(EXTRA_COMPILE_FLAGS) -c -o magfield.o magfield.c

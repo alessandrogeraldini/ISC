@@ -11,7 +11,7 @@ void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldp
 	/* declarations */
 	clock_t initial_t = clock();
 	//int N_gridphi_fieldperiod=20, field_periods=3; // now in separate file as defined constants
-	int i=0, i_periods=0, ind, include_centre=1, number_field_periods = 300;
+	int i=0, i_periods=0, ind, include_centre=1, number_field_periods = 1000;
 	int number_turns = 0, N_gridphi_tor = N_gridphi_fieldperiod*m0_fieldperiods;
 	int countlines=0, indices = number_field_periods*N_gridphi_fieldperiod, sizestring=100, nn;
 	struct position Xp, *fieldcentre;
@@ -56,6 +56,7 @@ void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldp
 		for (ind=0; ind<N_gridphi_fieldperiod; ind++) {
 			Bfield_axis[ind] = malloc(4*sizeof(struct field));
 		}
+		printf("YOLO\n");
 		fieldcentre = solve_magneticaxis(allparams, Bfield_axis, &axis, N_gridphi_fieldperiod);
 		linalg2x2(axis.tangent, evec, eval, &det, &trace);
 		printf("evec=%f\n", evec[0][0]);
@@ -65,6 +66,8 @@ void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldp
 		fprintf(IOTA, "%f %f %f\n", axis.loc[0], axis.loc[1], iota_axis);
 	}
 	/* loop over different initial values of (R,Z) */
+	//axis.loc[0] = 1.0;
+	//axis.loc[1] = 0.0;
 	for (ind=0;ind<countlines;ind+=1) {
 		Xp.loc[0] = axis.loc[0] + rmin[ind]; Xp.loc[1] = axis.loc[1] + zmin[ind];
 		Xp.tangent[0][0]=1.0; Xp.tangent[0][1]=0.0; Xp.tangent[1][0]=0.0; Xp.tangent[1][1]=1.0;

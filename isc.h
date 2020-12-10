@@ -53,6 +53,12 @@ struct ext_position {
 	double Res; // Residue
 };
 
+struct all_adjoints {
+	struct position adj_circandXp;
+	struct position adj_Res;
+	struct position *adj_Sigma;
+};
+
 
 /******         *******/
 
@@ -152,6 +158,8 @@ void RK4step_gradcirc(double *number, struct position *Xp, struct position *lamb
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line circumference, tangent map (eventually), and island width (eventually) */
 
+void RK4step_gradXp(double **number, struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) ;
+
 void RK4step_gradtangent(double *number, struct position *Xp, struct position *lambda, struct position *sperp, struct position *mu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 
 //void RK4step_gradRes(double number, &fieldline, &lambdamu, varphi, -dvarphi, Bfield_island[i % N_line], allparams, diffparams_ind1, diffparams_ind2);
@@ -161,24 +169,25 @@ void RK4_adjshapecirc(double ***shapecirc, struct position *Xp, struct position 
 /* takes a Runge Kutta 4th order step (in toroidal angle) 
    follows shape gradients of field line circumference */
 
-struct position *solve_magneticaxis(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
+struct position *solve_magneticaxis(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod, double error_threshold);
 /* finds the magnetic axis using a Newton iteration */
 
-//struct position *solve_magneticaxis_save(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int N_gridphi_fieldperiod);
-void solve_magneticaxis_save(double *axisguess, struct position **centre, struct fieldparams allparams, struct field **Bfieldsaved, int N_gridphi_fieldperiod);
+void solve_magneticaxis_save(double *axisguess, struct position **centre, struct fieldparams allparams, struct field **Bfieldsaved, int N_gridphi_fieldperiod, double error_max);
 /* finds the magnetic axis using a Newton iteration */
 
 void iotaprofile(struct position axis, int m0_symmetry, int N_gridphi_per_field_period, double *rmin, double *zmin, double *iota, struct fieldparams allparams) ;
-//void iotaprofile(double RRin, double r_interval, int n_points, int m0_symmetry, int N_gridphi_per_field_period, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs);
 /* computes iota as a function of distance from axis in a specified direction */
 
-struct position *solve_islandcenter(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int L_fixedpoints, int N_gridphi_fieldperiod);
+//struct position *solve_islandcenter(struct fieldparams allparams, struct field **Bfield_saved, struct position *fieldline, int L_fixedpoints, int N_gridphi_fieldperiod);
 /* finds the centre of an island from a nearby guess using a Newton iteration */
 
-void solve_islandcenter_save(struct position **centre, double *Res, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod) ;
+//void solve_islandcenter_save(struct position **centre, double *Res, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod, double error_max) ;
 
-void extsolve_periodicfieldline(struct ext_position *ext_centre, struct position *fieldline, struct position *axis, int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod);
+
+int extsolve_periodicfieldline(double *sensitive, double *guessfieldline_initial, struct ext_position *ext_centre, struct position **fieldline, struct field **Bfieldsaved, struct position *axis, struct fieldparams allparams,  int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod, double error_max);
 /* evaluates all quantities necessary to calculate the island width */
+
+int extsolve_adj_periodicfieldline(struct ext_position *ext_centre, struct position **centre, struct position **adj_SigmaQ, struct position **adj_Res, struct position *adj_circandXp, struct field **Bfieldsaved, int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod) ;
 
 double *calc_islandwidth(double *circ, double *Sigma, struct ext_position *ext_fieldline, int m0_symmetry, int L_fixedpoints, int pol_mode);
 /* evaluates island width */
@@ -195,29 +204,15 @@ struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_p
    and constrain the initial tangent map variation to be zero (mu) */
 void solve_lambdaRes(struct position **lambdaRes, struct position **Xp_saved, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, struct field **Bfield_saved) ;
 
-//void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, char *type, double *param, int num_params, int *params2) ;
+void solve_lambdaXp(struct position **lambda, struct position **Xp_saved, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, struct field **Bfield_saved) ;
+
 void solve_gradcirc(double *gradcircumference, struct field **Bfield_island, struct ext_position *ext_centre, struct position *lambda_circ, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 /* evaluates gradient of circumference */
 
-//void solve_gradtangent(double **gradtangent, struct field **Bfield_island, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int m0_symmetry, int L_fixedpoints, int q0_index, int N_gridphi_fieldperiod, char *type, double *param, int num_params, int *params2);
 void solve_gradtangent(double **number, struct field **Bfield_island, struct ext_position *ext_centre, struct position **lambdaQ, struct position **muQ, int L_fixedpoints, int q0_ind, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 /* evaluates gradient of Sigma (sum of tangent map matrix elements) */
 
-//void solve_gradRes(double *number, struct field **Bfield_island, struct position fieldline, struct position lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 void solve_gradRes(double *number, struct field **Bfield_island, struct position **fieldline, struct position **lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 
-//double ***shapecircumference(double ***coils, int n_coils, int *n_segs, struct ext_position *ext_centre, struct position *lambda_circ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode) ;
-/* evaluates shape gradient of circumference */
-
-//can delete this eventually
-//struct ext_position *gradalongcentrealt(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int n_coils, int *n_segs);
-/* evaluates all quantities necessary to calculate the island width gradient */
-
-//can delete this eventually
-//double *gradislandwidth(struct ext_position *ext_fieldline, struct ext_position *grad_ext_fieldline, int field_periods, int N_gridphi_per_field_period, int tor_mode, int pol_mode);
-/* evaluates island width gradient */
-
-//can delete this eventually
-//struct position *gradcentre(double RR, double ZZ, int m0_symmetry, int N_gridphi_per_field_period, int tor_mode, int pol_mode, double ***coils, int n_coils, int *n_segs);
-/* evaluates gradient of O point position and tangent map */
+void solve_gradXp(double **number, struct field **Bfield_island, struct position **fieldline, struct position **lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 

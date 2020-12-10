@@ -10,10 +10,13 @@
 double *linetodata(char *line, int *size) {
 	int i, imin, lenline, words, started_word, save=0;
 	char word[LEN];
-	double *line_broken = NULL;
+	double *line_broken;
 	/* Iterate over number of characters in the whole line
 	 */
-	line_broken = malloc(100*sizeof(double));
+	if (*size<1)
+	line_broken = malloc(LEN*sizeof(double));
+	else 
+	line_broken = malloc((*size)*sizeof(double));
 	//printf("START of linetodata\n");
 	lenline = strlen(line);
 	imin = 0;
