@@ -184,7 +184,7 @@ void iotaprofile(struct position axis, int m0_symmetry, int N_gridphi_per_field_
 //void solve_islandcenter_save(struct position **centre, double *Res, struct fieldparams allparams, struct field **Bfieldsaved, int L_fixedpoints, int N_gridphi_fieldperiod, double error_max) ;
 
 
-int extsolve_periodicfieldline(double *sensitive, double *guessfieldline_initial, struct ext_position *ext_centre, struct position **fieldline, struct field **Bfieldsaved, struct position *axis, struct fieldparams allparams,  int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod, double error_max);
+int extsolve_periodicfieldline(double *sensitive, double *guessfieldline_initial, struct ext_position *ext_centre, struct position **fieldline, struct field **Bfieldsaved, struct position *axis, struct fieldparams allparams,  int m0_symmetry, int L_fixedpoints, int *ppolmode, int *q0_index, int N_gridphi_fieldperiod, double error_max);
 /* evaluates all quantities necessary to calculate the island width */
 
 int extsolve_adj_periodicfieldline(struct ext_position *ext_centre, struct position **centre, struct position **adj_SigmaQ, struct position **adj_Res, struct position *adj_circandXp, struct field **Bfieldsaved, int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod) ;

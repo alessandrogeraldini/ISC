@@ -51,12 +51,15 @@ void linalg2x2(double **input, double **evecs, double *evals, double *determinan
 		//evecs[0][1] = 1.0/normevect;
 		//evecs[1][1] = unnorm_ycomp_evect/normevect;
 
-		if (fabs(input[0][1]*input[1][0]) < 1.0e-14) {
+		printf("normalized discriminant = %f\n", (fabs(input[0][1]*input[1][0])/(input[0][0]*input[0][0]+input[1][1]*input[1][1])));
+		//if ( (fabs(input[0][1]*input[1][0])/(input[0][0]*input[0][0]+input[1][1]*input[1][1])) < 1.0e-13 ) {
+		if (fabs(input[0][1]*input[1][0]) < 1.0e-14 ) {
 		
 			evecs[0][0] = 1.0; evecs[1][0] = 0.0;
 			evecs[0][1] = 0.0; evecs[1][1] = 1.0;
 		}
 		else {
+			printf("\n\n\n\n\n\n\nYOLO\n\n\n\n\n\n");
 			for (row = 0; row< 2; row++) {
 				unnorm_ycomp_evect = (evals[row] - input[0][0]);
 				unnorm_xcomp_evect = (evals[row] - input[1][1]);

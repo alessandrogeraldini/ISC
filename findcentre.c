@@ -10,7 +10,7 @@
 //#define smallerror 1.0e-14
 #define largeerror 1.0e-14
 #define FACTOR 1.0
-#define MAX_COUNT 50
+#define MAX_COUNT 300
 
 /*Jargon
 Fixed point: intersection of the periodic field line with a poloidal symmetry plane
@@ -331,8 +331,8 @@ void solve_magneticaxis_save(double *axisguess, struct position **centre, struct
 //		free(inverseTminusI[0]); free(inverseTminusI[1]); //		free(inverseTminusI); //		if (error > olderror) factor*= (olderror/error); //		else factor = FACTOR; //		olderror = error; //		count++; //	} while(error>smallerror && count < MAX_COUNT); //	if (count == MAX_COUNT) printf("Warning: periodic field line not found\n"); //	return;
 //}
 
-int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct ext_position *ext_centre, struct position **centre, struct field **Bfieldsaved, struct position *axis, struct fieldparams allparams, int m0_symmetry, int L_fixedpoints, int pol_mode, int *q0_index, int N_gridphi_fieldperiod, double smallerror) {
-	int outcome, ind;
+int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct ext_position *ext_centre, struct position **centre, struct field **Bfieldsaved, struct position *axis, struct fieldparams allparams, int m0_symmetry, int L_fixedpoints, int *ppol_mode, int *q0_index, int N_gridphi_fieldperiod, double smallerror) {
+	int outcome, ind, pol_mode;
 	int i=0, q0, q0ver, kminus, kplus, rhominus, rhoplus, number_turns;
 	double omega, rawangle, rawangle_principal, *angle_axis;
 	//double c0, c1, cov00, cov01, cov11, 
@@ -348,7 +348,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 	struct position *fieldline = malloc(L_fixedpoints*sizeof(struct position)), fieldlinevar;
 	struct position *adjfieldline = malloc(L_fixedpoints*sizeof(struct position));
 
-	int count = 0, num_strips;
+	int count = 0, num_strips, polmodem0overL;
 	double **evecs1=malloc(2*sizeof(double*)), *evals1=malloc(2*sizeof(double));
 	struct position fieldline_start, deltafieldline;
 	double errorthreshold = 1000.0;
@@ -360,6 +360,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 	double factor = FACTOR, step;
 	double **inverseT, **inverseinverseT_minusI, **inverseT_minusI;
 	double tol_interval;
+	//printf("MAX_COUNT = %d\n", MAX_COUNT);
 	inverseT_minusI = set_identity();
 	evecs1[0] = malloc(2*sizeof(double)); evecs1[1] = malloc(2*sizeof(double));
 	pdeltafieldline = calloc(2,sizeof(double*)); 
@@ -405,7 +406,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		inverseT_minusI[0][1] = inverseT[0][1];
 		inverseT_minusI[1][0] = inverseT[1][0];
 		inverseT_minusI[1][1] = inverseT[1][1] - 1.0;
-		//printstructposition("fieldline_start", &fieldline_start);printstructposition("fieldline", &fieldlinevar); 
+		printstructposition("fieldline_start", &fieldline_start);printstructposition("fieldline", &fieldlinevar); 
 		//printstructposition("deltafieldline", &deltafieldline); 
 		//if (factor > FACTOR) factor = FACTOR;
 		inverseTminusI = invert2x2(deltafieldline.tangent, &det_tangent);
@@ -441,6 +442,84 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		free(inverseTminusI);
 		count++;
 	} while(error>smallerror && count < MAX_COUNT);
+	printf("pol_mode = %d\n", *ppol_mode);
+	if (*ppol_mode == 0) {
+		polmodem0overL=1;
+		for (main_ind=1; main_ind < allparams.m0_fieldperiods; main_ind++) {
+			do {
+				count = 0;
+				varphi = main_ind*2.0*M_PI/allparams.m0_fieldperiods;
+				for (i=0; i<N_line; i++)
+				{
+					//printf("i=%d/%d\n", i, N_line);
+					//centre[i] = *fieldline;
+					centre[i][0] = fieldlinevar;
+					RK4step(&fieldlinevar, varphi, dvarphi, allparams, Bfieldsaved[i]);
+					//printstructposition("centre = ", centre[i]); printstructposition("centre = ", centre[i]+1);
+					//printstructposition("centre = ", centre[i]+2); printstructposition("centre = ", centre[i]+3);
+					varphi += dvarphi;
+				}
+				centre[0][0].tangent[0][0] = fieldlinevar.tangent[0][0];
+				centre[0][0].tangent[1][0] = fieldlinevar.tangent[1][0];
+				centre[0][0].tangent[0][1] = fieldlinevar.tangent[0][1];
+				centre[0][0].tangent[1][1] = fieldlinevar.tangent[1][1];
+				//*Res = 0.5 - 0.25*(fieldlinevar.tangent[0][0] + fieldlinevar.tangent[1][1]); 
+				deltafieldline = addstructs(1.0, &fieldlinevar, -1.0, &fieldline_start); 
+				olderror = error;
+				absolerror = (deltafieldline.loc[0]*deltafieldline.loc[0] + deltafieldline.loc[1]*deltafieldline.loc[1] );
+				error = sqrt( absolerror/ (fieldlinevar.loc[0]*fieldlinevar.loc[0] + fieldlinevar.loc[1]*fieldlinevar.loc[1]) ); 
+				inverseT = invert2x2(fieldlinevar.tangent, &det_tangent);
+				inverseT_minusI[0][0] = inverseT[0][0] - 1.0;
+				inverseT_minusI[0][1] = inverseT[0][1];
+				inverseT_minusI[1][0] = inverseT[1][0];
+				inverseT_minusI[1][1] = inverseT[1][1] - 1.0;
+				//printstructposition("fieldline_start", &fieldline_start);printstructposition("fieldline", &fieldlinevar); 
+				//printstructposition("deltafieldline", &deltafieldline); 
+				//if (factor > FACTOR) factor = FACTOR;
+				inverseTminusI = invert2x2(deltafieldline.tangent, &det_tangent);
+				inverseinverseT_minusI = invert2x2(inverseT_minusI, &det_tangent);
+				//printmat("inverseTminusI", inverseTminusI, 2, 2);
+				//printstructposition("deltafieldline", &deltafieldline);
+				jumptocentre = multiply(inverseTminusI, &deltafieldline.loc[0]);
+				jumpfromend  = multiply(inverseinverseT_minusI, &deltafieldline.loc[0]);
+				//if (factor>FACTOR) factor = FACTOR;
+				//printf("jumptocentre = (%f, %f)\n", jumptocentre[0], jumptocentre[1]);
+				jumptocentre[0] *= (factor);
+				jumptocentre[1] *= (factor);
+				fieldlinevar.loc[0] = fieldline_start.loc[0] = fieldline_start.loc[0] - jumptocentre[0]; 
+				fieldlinevar.loc[1] = fieldline_start.loc[1] = fieldline_start.loc[1] - jumptocentre[1];
+				//fieldline_start.loc[0] = fieldlinevar.loc[0] += jumpfromend[0]; 
+				//fieldline_start.loc[1] = fieldlinevar.loc[1] += jumpfromend[1];
+				//temppos[0] = 0.5*(fieldlinevar.loc[0] + fieldline_start.loc[0] + factor*(jumpfromend[0]- jumptocentre[0])); 
+				//temppos[1] = 0.5*(fieldlinevar.loc[1] + fieldline_start.loc[1] + factor*(jumpfromend[1]- jumptocentre[1])); 
+				//fieldline_start.loc[0] = fieldlinevar.loc[0] = temppos[0]; 
+				//fieldline_start.loc[1] = fieldlinevar.loc[1] = temppos[1];
+				fieldlinevar.tangent[0][0] = fieldline_start.tangent[0][0] = 1.0; 
+				fieldlinevar.tangent[0][1] = fieldline_start.tangent[0][1] = 0.0; 
+				fieldlinevar.tangent[1][0] = fieldline_start.tangent[1][0] = 0.0; 
+				fieldlinevar.tangent[1][1] = fieldline_start.tangent[1][1] = 1.0;
+				//printf("absolerror = %15.15f\n", absolerror);
+				//printf("error = %15.15f\n", error);
+				//printf("%f\n", fieldlinevar.loc[0]*fieldlinevar.loc[0] + fieldlinevar.loc[1]*fieldlinevar.loc[1]);
+				free(jumpfromend);
+				free(jumptocentre);
+				free(inverseinverseT_minusI[0]); free(inverseinverseT_minusI[1]);
+				free(inverseinverseT_minusI); 
+				free(inverseTminusI[0]); free(inverseTminusI[1]);
+				free(inverseTminusI);
+				count++;
+			} while(error>smallerror && count < MAX_COUNT);
+		if ( (count < MAX_COUNT) &&  ( pow( pow( fieldlinevar.loc[0] - centre[0][0].loc[0], 2.0 ) + pow( fieldlinevar.loc[1] - centre[0][0].loc[1], 2.0), 0.5 ) < 1e-3 ) )  polmodem0overL += 1;
+		}
+		pol_mode = polmodem0overL*L_fixedpoints/m0_symmetry;
+		printf("in loop pol_mode = %d\n", pol_mode);
+		*ppol_mode = pol_mode;
+	}
+	else pol_mode = (*ppol_mode);
+	printf("pol_mode = %d\n", pol_mode);
+	printf("L_fixedpoints = %d\n", L_fixedpoints);
+
+	//printf("count= %d/%d\n", count, MAX_COUNT);
 	//printstructposition("fieldline", &fieldlinevar);
 	//printf("guess = (%f, %f)\n", guessfieldline[0], guessfieldline[1]);
 	//printf("oldloc = (%f, %f)\n", oldloc[0], oldloc[1]);
@@ -486,7 +565,6 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 			fieldlinevar.tangent[0][1] = fieldline_start.tangent[0][1] = 0.0; 
 			fieldlinevar.tangent[1][0] = fieldline_start.tangent[1][0] = 0.0; 
 			fieldlinevar.tangent[1][1] = fieldline_start.tangent[1][1] = 1.0;
-			//}
 		}
 		//tol_interval *= 2.0/num_strips;
 		//} while (error > largeerror) ;
@@ -600,9 +678,9 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		number_turns = abs(number_turns);
 		if (number_turns == 0) {
 			number_turns = 1;
-			printf("WARNING: number_turns came out to be zero, check that these angles make sense:\n");
-			for (centre_ind=0; centre_ind<L_fixedpoints; centre_ind++)
-			printf("angle_axis[%d] = %f\n", centre_ind, angle_axis[centre_ind]);
+			//printf("WARNING: number_turns came out to be zero, check that these angles make sense:\n");
+			//for (centre_ind=0; centre_ind<L_fixedpoints; centre_ind++)
+			//printf("angle_axis[%d] = %f\n", centre_ind, angle_axis[centre_ind]);
 		}
 		//printf("number_turns = %d\n", number_turns);
 		for (centre_ind=0;centre_ind<L_fixedpoints;centre_ind++) {
@@ -636,6 +714,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		linalg2x2(ext_centre[0].full_tangent, evecs1, evals1, &det, &trace);
 		for (main_ind=0; main_ind<L_fixedpoints; main_ind++) 
 		ext_centre[main_ind].Res = 0.5 - 0.25*(ext_centre[main_ind].full_tangent[0][0] + ext_centre[main_ind].full_tangent[1][1]);
+		printf("Residue of 0th fixed point = %f\n", ext_centre[0].Res);
 		if (1.0/ext_centre[0].Res > 1.0) { // condition for periodic field line to be island centre
 			//printf("Periodic field line is O point\n");
 			if (*q0_index == 0) {
@@ -724,6 +803,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 				//printf("sum_matrix_elements = %f\n", sum_matrix_elements);
 				//printf("sum_matrix_elements_oldway = %f\n", sum_matrix_elements_oldway);
 				//wperp[main_ind] = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
+				//printf("pol_mode = %d, L=%d\n", pol_mode, L_fixedpoints);
 				ext_centre[main_ind].width = 2.0*L_fixedpoints*circumference/(M_PI*pol_mode*sum_matrix_elements);
 				ext_centre[main_ind].Sigma = sum_matrix_elements;
 				ext_centre[main_ind].circ = circumference;

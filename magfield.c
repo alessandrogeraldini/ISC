@@ -533,7 +533,7 @@ struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_p
 	/*
 		Declarations
 	*/
-	double Xminxc=0.0, Yminyc=0.0, Zminzc=0.0, Rminrc=0.0, dxc=0.0, dyc=0.0, dzc=0.0, drc;
+	double Xminxc=0.0, Yminyc=0.0, Zminzc=0.0, Rminrc=0.0, dxc=0.0, dyc=0.0, dzc=0.0, drc, lencoil = 0.0;
 	double Xminxcp=0.0, Yminycp=0.0, Zminzcp=0.0, Rminrcp=0.0;
 	double XX=RR*cos(varphi), YY=RR*sin(varphi), tancoil[3], tancoilx[3], tancoil_length;
 	struct field magfield;// Bvect;// gradB, gradgradBcheck, twogradB;
@@ -574,6 +574,7 @@ struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_p
 	*/
 	for (coil_index=0;coil_index<n_params;coil_index++) {
 		//printf("coil_index=%d/%d\n", coil_index, n_params);
+		lencoil = 0.0;
 		for (coilseg_index=0;coilseg_index<num_segs[coil_index];coilseg_index++) {
 			//printf("coilseg_index=%d/%d\n", coilseg_index, num_segs[coil_index]);
 			current = coils[coil_index][coilseg_index][3];
@@ -635,14 +636,12 @@ struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_p
 			dyc = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][1] - coils[coil_index][coilseg_index][1];
 			dzc = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][2] - coils[coil_index][coilseg_index][2];
 			drc = sqrt(pow(dxc, 2.0) + pow(dyc, 2.0) + pow(dzc, 2.0));
+			lencoil +=drc;
 			//printf("drc = %f\n", drc);
 			drcvect[0] = cos(varphi)*dxc + sin(varphi)*dyc;
 			drcvect[1] = dzc;
 			drcvect[2] = - sin(varphi)*dxc + cos(varphi)*dyc; 
 
-			//tancoil[0] = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][0] - coils[coil_index][(coilseg_index + num_segs[coil_index] -1)%num_segs[coil_index]][0];
-			//tancoil[1] = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][1] - coils[coil_index][(coilseg_index + num_segs[coil_index] -1)%num_segs[coil_index]][1];
-			//tancoil[2] = coils[coil_index][(coilseg_index+1)%num_segs[coil_index]][2] - coils[coil_index][(coilseg_index + num_segs[coil_index] -1)%num_segs[coil_index]][2];
 			if (coilseg_index == 0) {
 				tancoilx[0] = coils[coil_index][1][0] - coils[coil_index][num_segs[coil_index] - 1][0];
 				tancoilx[1] = coils[coil_index][1][1] - coils[coil_index][num_segs[coil_index] - 1][1];
@@ -662,50 +661,52 @@ struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_p
 			tancoil[1] = tancoilx[2];
 			tancoil[2] = - sin(varphi)*tancoilx[0] + cos(varphi)*tancoilx[1]; 
 			tancoil_length = sqrt(tancoil[0]*tancoil[0] + tancoil[1]*tancoil[1] + tancoil[2]*tancoil[2]);	
+			//lencoil += 0.5*tancoil_length*
 			//printf("x drc vs tancoil %f %f\n", drcvect[0], tancoil[0]);
 			//printf("z drc vs tancoil %f %f\n", drcvect[1], tancoil[1]);
 			//printf("y drc vs tancoil %f %f\n", drcvect[2], tancoil[2]);
-			tancoil[0] /= tancoil_length;
-			tancoil[1] /= tancoil_length;
-			tancoil[2] /= tancoil_length;
+			//tancoil[0] /= tancoil_length;
+			//tancoil[1] /= tancoil_length;
+			//tancoil[2] /= tancoil_length;
 
 
 			////////////////
 			for (row=0;row<3;row++) {
-				//magfield.value[row] +=  drc*pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -tancoil[1]*Rminrcvect[2] + tancoil[2]*Rminrcvect[1] ) + Zhat[row] * (-tancoil[2]*Rminrcvect[0] + tancoil[0]*Rminrcvect[2] ) + phihat[row] * (-tancoil[0]*Rminrcvect[1] + tancoil[1]*Rminrcvect[0] ) ) ;
+				magfield.value[row] +=  (0.5)*pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -tancoil[1]*Rminrcvect[2] + tancoil[2]*Rminrcvect[1] ) + Zhat[row] * (-tancoil[2]*Rminrcvect[0] + tancoil[0]*Rminrcvect[2] ) + phihat[row] * (-tancoil[0]*Rminrcvect[1] + tancoil[1]*Rminrcvect[0] ) ) ;
 				// different method below (below works best with shape gradient)
-				magfield.value[row] +=  0.5*pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
-				magfield.value[row] +=  0.5*pow(10.0,-7.0) * ( current / pow(Rminrcp, 3.0) ) * ( Rhat[row] * ( -drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) );
+				//magfield.value[row] +=  0.5*pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( Rhat[row] * ( -drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
+				//magfield.value[row] +=  0.5*pow(10.0,-7.0) * ( current / pow(Rminrcp, 3.0) ) * ( Rhat[row] * ( -drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) );
 				//printf("%10.10f\n",  -drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] );
 				for (col=0;col<2;col++) {
-					//magfield.derivative[row][col] += drc*( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-tancoil[1]*Rminrcvect[2] + tancoil[2]*Rminrcvect[1] ) + Zhat[row] * (-tancoil[2]*Rminrcvect[0] + tancoil[0]*Rminrcvect[2] ) + phihat[row] * (-tancoil[0]*Rminrcvect[1] + tancoil[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( tancoil[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + tancoil[1] * phihat[row] * Rhat[col] - tancoil[0] * phihat[row] *Zhat[col] ) ) ) ; 
+					magfield.derivative[row][col] += (0.5)*( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-tancoil[1]*Rminrcvect[2] + tancoil[2]*Rminrcvect[1] ) + Zhat[row] * (-tancoil[2]*Rminrcvect[0] + tancoil[0]*Rminrcvect[2] ) + phihat[row] * (-tancoil[0]*Rminrcvect[1] + tancoil[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( tancoil[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + tancoil[1] * phihat[row] * Rhat[col] - tancoil[0] * phihat[row] *Zhat[col] ) ) ) ; 
 					// different method below
-					magfield.derivative[row][col] += 0.5*( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
-					magfield.derivative[row][col] += 0.5*( pow(10.0,-7.0) * ( current / pow(Rminrcp, 3.0) ) * ( - 3.0 * Rminrcvectp[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) ) / pow(Rminrcp, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
+					//magfield.derivative[row][col] += 0.5*( pow(10.0,-7.0) * ( current / pow(Rminrc, 3.0) ) * ( - 3.0 * Rminrcvect[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) ) / pow(Rminrc, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
+					//magfield.derivative[row][col] += 0.5*( pow(10.0,-7.0) * ( current / pow(Rminrcp, 3.0) ) * ( - 3.0 * Rminrcvectp[col] * ( Rhat[row] * (-drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) ) / pow(Rminrcp, 2.0) + ( drcvect[2]*( Rhat[row]*Zhat[col] - Rhat[col]*Zhat[row])  + drcvect[1] * phihat[row] * Rhat[col] - drcvect[0] * phihat[row] *Zhat[col] ) ) ) ; 
 					for (dep=0; dep<2; dep++) {
-						//object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
-						//object += 3.0 * Rminrcvect[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
-						//object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
-						//object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
-						////gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-						//magfield.twoderivative[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-						// different method below
 						object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
 						object += 3.0 * Rminrcvect[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
 						object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
 						object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
 						//gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-						magfield.twoderivative[row][col][dep] += 0.5* ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-						object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvectp[dep] * Rminrcvectp[col] / pow(Rminrcp, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) );
-						object += 3.0 * Rminrcvectp[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
-						object += 3.0 * Rhat[dep] * Rminrcvectp[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
-						object += 3.0 * Zhat[dep] * Rminrcvectp[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
-						//gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
-						magfield.twoderivative[row][col][dep] += 0.5* ( pow(10.0,-7.0) * ( current / pow(Rminrcp, 5.0) ) * object ) ;
+						magfield.twoderivative[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
+						// different method below
+						//object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvect[dep] * Rminrcvect[col] / pow(Rminrc, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvect[2] + drcvect[2]*Rminrcvect[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvect[0] + drcvect[0]*Rminrcvect[2] ) + phihat[row] * (-drcvect[0]*Rminrcvect[1] + drcvect[1]*Rminrcvect[0] ) );
+						//object += 3.0 * Rminrcvect[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
+						//object += 3.0 * Rhat[dep] * Rminrcvect[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
+						//object += 3.0 * Zhat[dep] * Rminrcvect[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
+						////gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
+						//magfield.twoderivative[row][col][dep] += 0.5* ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
+						//object = 3.0 * ( - Rhat[dep] *Rhat[col] - Zhat[dep]* Zhat[col] + 5.0 * Rminrcvectp[dep] * Rminrcvectp[col] / pow(Rminrcp, 2.0) ) * ( Rhat[row] * ( - drcvect[1]*Rminrcvectp[2] + drcvect[2]*Rminrcvectp[1] ) + Zhat[row] * (-drcvect[2]*Rminrcvectp[0] + drcvect[0]*Rminrcvectp[2] ) + phihat[row] * (-drcvect[0]*Rminrcvectp[1] + drcvect[1]*Rminrcvectp[0] ) );
+						//object += 3.0 * Rminrcvectp[dep]* ( drcvect[2]*( Rhat[col]*Zhat[row] - Rhat[row]*Zhat[col])  - drcvect[1] * phihat[row] * Rhat[col] + drcvect[0] * phihat[row] *Zhat[col] ) ; 
+						//object += 3.0 * Rhat[dep] * Rminrcvectp[col] * (   drcvect[2] * Zhat[row] - drcvect[1] * phihat[row] );
+						//object += 3.0 * Zhat[dep] * Rminrcvectp[col] * ( - drcvect[2]* Rhat[row] + drcvect[0] * phihat[row]  );
+						////gradgradB[row][col][dep] += ( pow(10.0,-7.0) * ( current / pow(Rminrc, 5.0) ) * object ) ;
+						//magfield.twoderivative[row][col][dep] += 0.5* ( pow(10.0,-7.0) * ( current / pow(Rminrcp, 5.0) ) * object ) ;
 					}
 				}
 			}
 		}
+	//if (coil_index == 0) printf("lencoil = %f\n", lencoil);
 	}
 	return magfield;
 }

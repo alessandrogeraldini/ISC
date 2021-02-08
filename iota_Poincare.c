@@ -5,6 +5,7 @@
 #include <time.h>
 #include "isc.h"
 #include <gsl/gsl_fit.h>
+#define error 1.0e-10
 
 //void iotaprofile(double RRin, double r_interval, int n_points, int m0_fieldperiods, int N_gridphi_fieldperiod, double *minor_radius, double *iota, double ***coils, int n_coils, int *n_segs);
 void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldperiod, double *rmin, double *zmin, double *iota, struct fieldparams allparams) {
@@ -57,7 +58,7 @@ void iotaprofile(struct position axis, int m0_fieldperiods, int N_gridphi_fieldp
 			Bfield_axis[ind] = malloc(4*sizeof(struct field));
 		}
 		printf("YOLO\n");
-		fieldcentre = solve_magneticaxis(allparams, Bfield_axis, &axis, N_gridphi_fieldperiod);
+		fieldcentre = solve_magneticaxis(allparams, Bfield_axis, &axis, N_gridphi_fieldperiod, error);
 		linalg2x2(axis.tangent, evec, eval, &det, &trace);
 		printf("evec=%f\n", evec[0][0]);
 		iota_axis = -eval[1]*m0_fieldperiods/(2.0*M_PI);
