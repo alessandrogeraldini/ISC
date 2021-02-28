@@ -406,7 +406,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		inverseT_minusI[0][1] = inverseT[0][1];
 		inverseT_minusI[1][0] = inverseT[1][0];
 		inverseT_minusI[1][1] = inverseT[1][1] - 1.0;
-		printstructposition("fieldline_start", &fieldline_start);printstructposition("fieldline", &fieldlinevar); 
+		//printstructposition("fieldline_start", &fieldline_start);printstructposition("fieldline", &fieldlinevar); 
 		//printstructposition("deltafieldline", &deltafieldline); 
 		//if (factor > FACTOR) factor = FACTOR;
 		inverseTminusI = invert2x2(deltafieldline.tangent, &det_tangent);
@@ -442,7 +442,7 @@ int extsolve_periodicfieldline(double *sensitive, double *guessfieldline, struct
 		free(inverseTminusI);
 		count++;
 	} while(error>smallerror && count < MAX_COUNT);
-	printf("pol_mode = %d\n", *ppol_mode);
+	//printf("pol_mode = %d\n", *ppol_mode);
 	if (*ppol_mode == 0) {
 		polmodem0overL=1;
 		for (main_ind=1; main_ind < allparams.m0_fieldperiods; main_ind++) {
@@ -1295,7 +1295,6 @@ struct position **solve_lambda_tangent(struct field **Bfield_saved, struct ext_p
 	return lambda;
 }
 
-//solve_lambdaRes(lambdamu_saved, island_center_saved, m0, L_fixedpoints, N_gridphi_fieldperiod, Bfield_island);
 void solve_lambdaRes(struct position **lambda, struct position **Xp_saved, int m0_symmetry, int L_fixedpoints, int N_gridphi_fieldperiod, struct field **Bfield_saved) {
 	// declarations
 	//clock_t start = clock();
@@ -1310,10 +1309,10 @@ void solve_lambdaRes(struct position **lambda, struct position **Xp_saved, int m
 	lambdavar.tangent = set_identity();
 	lambdatan0 = set_identity();
 	//lambdatan0 = invert2x2(adjfulltangent, &det);
-	lambdavar.tangent[0][0] = lambdatan0[0][0] = lambda[0][0].tangent[0][0];
-	lambdavar.tangent[0][1] = lambdatan0[0][1] = lambda[0][0].tangent[0][1];
-	lambdavar.tangent[1][0] = lambdatan0[1][0] = lambda[0][0].tangent[1][0];
-	lambdavar.tangent[1][1] = lambdatan0[1][1] = lambda[0][0].tangent[1][1];
+	lambdavar.tangent[0][0] = lambdatan0[0][0] = 0.25* lambda[0][0].tangent[0][0];
+	lambdavar.tangent[0][1] = lambdatan0[0][1] = 0.25* lambda[0][0].tangent[0][1];
+	lambdavar.tangent[1][0] = lambdatan0[1][0] = 0.25* lambda[0][0].tangent[1][0];
+	lambdavar.tangent[1][1] = lambdatan0[1][1] = 0.25* lambda[0][0].tangent[1][1];
 	//lambdavar.tangent = invert2x2(adjfulltangent, &det);
 	count = 0;
 	//printf("Finding adjoint variable lambdaRes:\n");
@@ -1333,14 +1332,15 @@ void solve_lambdaRes(struct position **lambda, struct position **Xp_saved, int m
 			varphi += dvarphi;
 		}
 		deltalambda = addstructs(1.0, &lambdavar, -1.0, lambda[0]); 
+		//printstructposition("lambdavar", &lambdavar); //printstructposition("lambda", lambda[0]);
 		//TminusI[0][0] = lambdatan0[0][0] - 1.0;
 		//TminusI[0][1] = lambdatan0[0][1] ;
 		//TminusI[1][0] = lambdatan0[1][0] ;
 		//TminusI[1][1] = lambdatan0[1][1] - 1.0;
-		TminusI[0][0] = lambdatan0[0][0] - 1.0;
-		TminusI[0][1] = lambdatan0[0][1] ;
-		TminusI[1][0] = lambdatan0[1][0] ;
-		TminusI[1][1] = lambdatan0[1][1] - 1.0;
+		TminusI[0][0] = 4.0* lambdatan0[0][0] - 1.0;
+		TminusI[0][1] = 4.0* lambdatan0[0][1] ;
+		TminusI[1][0] = 4.0* lambdatan0[1][0] ;
+		TminusI[1][1] = 4.0* lambdatan0[1][1] - 1.0;
 		inverseTminusI = invert2x2(TminusI, &det);
 		jumptocentre = multiply(inverseTminusI, &deltalambda.loc[0]);
 		lambdavar.loc[0] += jumptocentre[0]; 
@@ -1391,7 +1391,6 @@ void solve_lambdaXp(struct position **lambda, struct position **Xp_saved, int m0
 	return;
 }
 
-//void solve_gradXp(double **number, struct field **Bfield_island, struct position **fieldline, struct position **lambdamu, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) ;
 void solve_gradXp(double **number, struct field **Bfield_island, struct position **fieldline, struct position **lambdaXp, int L_fixedpoints, int N_gridphi_fieldperiod, struct fieldparams allparams, int diffparams_ind1, int diffparams_ind2) {
 	int N_line, i=0;
 	int num_params ;
@@ -1591,16 +1590,8 @@ void solve_gradRes(double *number, struct field **Bfield_island, struct position
 	num_params = allparams.n_diff; 
 	N_line = L_fixedpoints*N_gridphi_fieldperiod;
 	for (i=0;i<allparams.n_diff; i++) number[i] = 0.0;
-	for (i=0; i<N_line; i++)
-	{
-		//printf("i=%d/%d\n", i, N_line); 
-		//printstructposition("fieldline", fieldline[i]+1);
-		//printstructposition("lambdamu", lambdamu[i]+1);
-		//printstructfield("Bfield", Bfield_island[i]+1);
-		//printf("number = %f\n", number[0]);
-		//void RK4step_gradRes(double *number, struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) {
+	for (i=0; i<N_line; i++) {
 		RK4step_gradRes(number, fieldline[i], lambdamu[i], varphi, dvarphi, Bfield_island[i], allparams, diffparams_ind1, diffparams_ind2);
-		//printf("number=%f\n", *number);
 		varphi += dvarphi;
 	}
 	return;

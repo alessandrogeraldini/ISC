@@ -8,9 +8,9 @@
 #include "isc.h"
 #include <gsl/gsl_sf_bessel.h>
 #define N_gridphi_fieldperiod 30
-#define error_max 1e-12
+#define error_max 1e-13
 #define poiniota 'n'
-#define calcshap 'n'
+#define calcshap 'y'
 #define convergence_test 0
 #define testwidth_Reim 0
 
@@ -36,7 +36,7 @@ int main()
     double powdeltain = -0.5, steppowdelta = -3.5;
     int N_line;
     int seg_step = 1;
-    int max_coil_ind, num_segs, max_num_segs = 80, seg_start = 320;
+    int max_coil_ind, num_segs, max_num_segs = 80, seg_start = 0;
     int line_elements, *q0_index; 
     struct position ***periodicfield_saved, **axis_saved;
     struct ext_position **ext_periodicfield, *ext_periodicfield_FD[2];
@@ -357,8 +357,10 @@ R, Z, pol_mode, tor_mode
 	    	printf("island_center[%d].(R,Z) = (%f, %f)\n", fixed_ind, ext_periodicfield[res_ind][fixed_ind].loc[0], ext_periodicfield[res_ind][fixed_ind].loc[1]);
 	    	printf("island_center[%d].(Res, width, Sigma, circ) = (%f, %f, %f, %f)\n", fixed_ind, ext_periodicfield[res_ind][fixed_ind].Res, ext_periodicfield[res_ind][fixed_ind].width, ext_periodicfield[res_ind][fixed_ind].Sigma, ext_periodicfield[res_ind][fixed_ind].circ);
 	    }
+	    printf("List of fixed points and their basic info: \n");
 	    clock_t int_afterislandcentre = clock();
 	    printf("... %f seconds ...\n", (double) (int_afterislandcentre-start)/CLOCKS_PER_SEC);
+	    printf("calcshap = %c\n", calcshap);
 	    if (calcshap == 'y') {
  	        //printf("Entering function that calculates the width of all islands in this chain\n");
  	        //printf("Left function that calculates the width of all islands in this chain\n");
@@ -432,7 +434,7 @@ R, Z, pol_mode, tor_mode
  	            realgradSigma[res_ind][coil_ind] = malloc(num_segs*sizeof(double));
  	            realgradwidth[res_ind][coil_ind] =malloc(num_segs*sizeof(double));
 // This is temporary, remove!
-num_segs = max_num_segs + seg_start;
+//num_segs = max_num_segs + seg_start;
  	            for ( seg_ind=seg_start; seg_ind < num_segs  ; seg_ind+=seg_step) {
  	            	gradcirc[res_ind][coil_ind][seg_ind] = calloc(allparams.n_diff,sizeof(double));
  	            	gradRes[res_ind][coil_ind][seg_ind] = calloc(allparams.n_diff,sizeof(double));
@@ -541,13 +543,14 @@ Note for now the index 0 below because I only print to file gradients with respe
 		    for (coil_ind=0; coil_ind<max_coil_ind; coil_ind++) {
 		        if (strncmp(allparams.type, "coil", 4) == 0) num_segs = allparams.intparams[coil_ind];
 		        else num_segs = 1; // for anything but the "coil" type, the 2nd index of diff_params is always 0
+			printf("num_segs = %d\n", num_segs);
 		        checknormgradSigma[res_ind][coil_ind] = malloc(num_segs*sizeof(double));
 		        checknormgradwidth[res_ind][coil_ind] = malloc(num_segs*sizeof(double));
 		        checknormgradcirc[res_ind][coil_ind] = malloc(num_segs*sizeof(double));
 		        checknormgradRes[res_ind][coil_ind] = malloc(num_segs*sizeof(double));
 //
 //num_segs = max_num_segs;
-num_segs = max_num_segs + seg_start;
+//num_segs = max_num_segs + seg_start;
 		        for (seg_ind=seg_start; seg_ind<num_segs; seg_ind+=seg_step) {
 		    	    checknormgradSigma[res_ind][coil_ind][seg_ind] = malloc(L_fixedpoints*sizeof(double));
 		    	    checknormgradwidth[res_ind][coil_ind][seg_ind] = malloc(L_fixedpoints*sizeof(double));
@@ -575,9 +578,9 @@ num_segs = max_num_segs + seg_start;
 		    	    	    else if (param_ind == 2) printf("gradient with respect to 3rd parameter\n");
 		    	    	    else printf("gradient with respect to %dth parameter\n", param_ind+1);
 		    	    	    //savedcoilseg = allparams.diffparams[0][0][param_ind];
-		    	    	    //savedcoilseg = Res / (0.25*gradRes[param_ind]);
-		    	    	    //savedcoilseg = ext_periodicfield[res_ind][0].Res / gradRes[res_ind][coil_ind][seg_ind][param_ind];
-		    	    	    savedcoilseg = 1.0;
+		    	    	    //savedcoilseg = Res / (gradRes[param_ind]);
+		    	    	    savedcoilseg = ext_periodicfield[res_ind][0].Res / gradRes[res_ind][coil_ind][seg_ind][param_ind];
+		    	    	    //savedcoilseg = 1.0;
 		    	    	    if (fabs(savedcoilseg) > 100.0)  savedcoilseg = 1.0; // pick a reference value for finite difference of parameter
 		    	    	    printf("FD step = %f\n", delta*savedcoilseg);
 // begin the finite differencing procedure by stepping up 
@@ -601,7 +604,7 @@ num_segs = max_num_segs + seg_start;
 // step back up to original parameter
 		    	    	    allparams.diffparams[coil_ind][seg_ind][param_ind] += (delta*savedcoilseg);
 //printf("res_ind=%d, coil_ind=%d, seg_ind = %d, param_ind = %d\n", res_ind, coil_ind, seg_ind, param_ind);
-		    	    	    printf("gradRes[%d][%d][%d][%d] = %9.9f (direct) %9.9f (FD)\n", res_ind, coil_ind, seg_ind, param_ind, 0.25*realgradRes[res_ind][coil_ind][seg_ind][param_ind]/ext_periodicfield[res_ind][0].Res, checknormgradRes[res_ind][coil_ind][seg_ind][param_ind][delta_ind]);
+		    	    	    printf("gradRes[%d][%d][%d][%d] = %9.9f (direct) %9.9f (FD)\n", res_ind, coil_ind, seg_ind, param_ind, realgradRes[res_ind][coil_ind][seg_ind][param_ind]/ext_periodicfield[res_ind][0].Res, checknormgradRes[res_ind][coil_ind][seg_ind][param_ind][delta_ind]);
 		    	    	    printf("gradcirc[%d][%d][%d][%d] = %9.9f (direct) %9.9f (FD)\n", res_ind, coil_ind, seg_ind, param_ind, realgradcirc[res_ind][coil_ind][seg_ind][param_ind]/ext_periodicfield[res_ind][0].circ, checknormgradcirc[res_ind][coil_ind][seg_ind][param_ind][delta_ind]);
 		    	    	    for (fixed_ind=0; fixed_ind<L_fixedpoints; fixed_ind++) {
 		    	    	        checknormgradSigma[res_ind][coil_ind][seg_ind][fixed_ind][param_ind][delta_ind] = ( log(ext_periodicfield_FD[1][fixed_ind].Sigma) - log(ext_periodicfield_FD[0][fixed_ind].Sigma) ) / (2.0*delta*savedcoilseg);
@@ -636,7 +639,7 @@ num_segs = max_num_segs + seg_start;
 note aga                        in the index 0
 */
 		                	normgradSigma = gradSigma[res_ind][coil_ind][seg_ind][0][param_ind]/ext_periodicfield[res_ind][0].Sigma;
-		                	normgradRes = 0.25*gradRes[res_ind][coil_ind][seg_ind][param_ind]/ext_periodicfield[res_ind][0].Res; 
+		                	normgradRes = gradRes[res_ind][coil_ind][seg_ind][param_ind]/ext_periodicfield[res_ind][0].Res; 
 		                	printf("gw[%d] = %10.10f\ngw_delta[%d] = [", param_ind, normgradwidth, param_ind);
 		                	for (delta_ind = 0; delta_ind<delta_ind_max; delta_ind++) {
 		                	    printf("%10.10f ", checknormgradwidth[res_ind][coil_ind][seg_ind][0][param_ind][delta_ind]);

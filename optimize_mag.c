@@ -9,14 +9,14 @@
 #include <ctype.h>
 #include "isc.h"
 #include <gsl/gsl_sf_bessel.h>
-#define error_max 1e-14
-#define N_gridphi_fieldperiod 50
+#define error_max 1e-13
+#define N_gridphi_fieldperiod 30
 
 int main()
 {
     clock_t start = clock();
     struct fieldparams allparams;
-    int lenline = 1000, num_line_file, num_resonances;
+    int lenline = 1000, num_line_file, num_resonances, fixedpoint_toofar = 0, accepted = 0;
     int *search, m0, *L_fixedpoints, N_line;
     int *q0_index; // It is important to initialize the integer stored in q0_index to 0
     int *pol_mode, *tor_mode, fixed_ind, res_ind, ind, coil_ind, param_ind;
@@ -36,7 +36,7 @@ int main()
     double ****gradXp, **gradXp_axis[2];
     double ***shapeResheli;
     double *Res, *Resopt, coilparams_opt[2], deltaparam[2], rmsqavRes_opt=100.0, rmsqavRes;
-    double **Xpguess, axisguess[2];
+    double **Xpguess, axisguess[2], **Xpold, axisold[2];
     double testpos[2] = {0.95, 0.0};
     double opfactor_reference = 1.0, opfactor=opfactor_reference, tolstep;
     double **matrix = malloc(2*sizeof(double)), **invertmatrix, **adjmatrix;
@@ -77,6 +77,7 @@ int main()
     
     fixedpoint_RZ = malloc(num_resonances*sizeof(double));
     Xpguess = malloc(num_resonances*sizeof(double));
+    Xpold = malloc(num_resonances*sizeof(double));
     ext_periodicfield = malloc(num_resonances*sizeof(struct ext_position));
     periodicfield_optimized = malloc(num_resonances*sizeof(double));
     Bfield_island = malloc(num_resonances*sizeof(struct field));
@@ -163,6 +164,7 @@ int main()
         gradXp[res_ind]=malloc(allparams.n_coils*sizeof(double));
 	shapeResheli[res_ind] = malloc(allparams.n_coils*sizeof(double));
 	Xpguess[res_ind] = malloc(2*sizeof(double));
+	Xpold[res_ind] = malloc(2*sizeof(double));
     	if (tor_mode[res_ind] % m0 == 0) L_fixedpoints[res_ind] = pol_mode[res_ind];	
     	else L_fixedpoints[res_ind] = m0*pol_mode[res_ind];
     	N_line = L_fixedpoints[res_ind]*N_gridphi_fieldperiod;
@@ -174,7 +176,7 @@ int main()
     	}
     	ext_periodicfield[res_ind] = malloc(L_fixedpoints[res_ind]*sizeof(struct ext_position));
     	printf("Entering function that solves for the periodic field line in extended way\n");
-    	search[res_ind]  = extsolve_periodicfieldline(NULL, fixedpoint_RZ[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode[res_ind], q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+    	search[res_ind]  = extsolve_periodicfieldline(NULL, fixedpoint_RZ[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
     	if (search[res_ind] == 0) {
 	    //periodicfield_saved[0][0].tangent[0][0] = 1.0;
 	    //periodicfield_saved[0][0].tangent[0][1] = 0.0;
@@ -259,7 +261,7 @@ int main()
 	else if ( (count_since_optimum == count_int) && (count_int != 0) ) {
         //if (count == count_int) {
             //opfactor_reference /= 2.0;
-	    printf("???coil parameters = (%14.14f, %14.14f)\n", allparams.diffparams[0][0][rowallowed[0][0]], allparams.diffparams[1][0][rowallowed[1][0]]);
+	    printf("coil parameters = (%14.14f, %14.14f)\n", allparams.diffparams[0][0][rowallowed[0][0]], allparams.diffparams[1][0][rowallowed[1][0]]);
             objective = objective_opt ;
             objectiveold = 9e13;
             allparams.diffparams[0][0][rowallowed[0][0]] = coilparams_opt[0] ;
@@ -281,19 +283,20 @@ int main()
 	    solve_magneticaxis_save(axisguess, axis_saved, allparams, Bfield_axis, N_gridphi_fieldperiod, error_max);
 	    ind = 0;
 	    saveR = axisguess[0];
-	    while ( fabs(axis_saved[0][0].loc[0] - axisguess[0]) > tolstep ) {
-	    	axisguess[0] = saveR + (ind/tol_window[1])*tolstep;
-	    	solve_magneticaxis_save(axisguess, axis_saved, allparams, Bfield_axis, N_gridphi_fieldperiod, error_max);
-	    	if ( fabs(axis_saved[0][0].loc[0] - axisguess[0]) > tolstep ) {
-	    		axisguess[0] = saveR - (ind/tol_window[1])*tolstep;
-	    		solve_magneticaxis_save(axisguess, axis_saved, allparams, Bfield_axis, N_gridphi_fieldperiod, error_max);
-	    	}
-	    	ind++;
-	    	if (ind>tol_window[1]) {
-	    		printf("ERROR: magnetic axis lost during iteration\n");
-	    		exit(1);
-	    	}
-	    }
+
+	    //while ( fabs(axis_saved[0][0].loc[0] - axisguess[0]) > tolstep ) {
+	    //	axisguess[0] = saveR + (ind/tol_window[1])*tolstep;
+	    //	solve_magneticaxis_save(axisguess, axis_saved, allparams, Bfield_axis, N_gridphi_fieldperiod, error_max);
+	    //	if ( fabs(axis_saved[0][0].loc[0] - axisguess[0]) > tolstep ) {
+	    //		axisguess[0] = saveR - (ind/tol_window[1])*tolstep;
+	    //		solve_magneticaxis_save(axisguess, axis_saved, allparams, Bfield_axis, N_gridphi_fieldperiod, error_max);
+	    //	}
+	    //	ind++;
+	    //	if (ind>tol_window[1]) {
+	    //		printf("ERROR: magnetic axis lost during iteration\n");
+	    //		exit(1);
+	    //	}
+	    //}
 	    //printf("axis_guess = (%f, %f)\n", axisguess[0], axisguess[1]);
 	    printf("axis = (%f, %f)\n", axis_saved[0][0].loc[0], axis_saved[0][0].loc[1]);
 	    adjmatrix = adj2x2(axis_saved[0][0].tangent, &det);
@@ -315,27 +318,30 @@ int main()
 	    for (ind=0; ind<N_gridphi_fieldperiod; ind++) axis[ind] = axis_saved[ind][0];
 	    objective = rmsqavRes = sumfactor = 0.0;
 	    printf("coil parameters = (%14.14f, %14.14f)\n", allparams.diffparams[0][0][rowallowed[0][0]], allparams.diffparams[1][0][rowallowed[1][0]]);
+	    fixedpoint_toofar = 0;
 	    for (res_ind=0; res_ind<num_resonances; res_ind++) {
 	        q0_index[res_ind] = 0;
-	        //printf("periodicfield_guess = (%10f, %10f)\n", Xpguess[res_ind][0], Xpguess[res_ind][1]);
-	        extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode[res_ind], q0_index+res_ind, N_gridphi_fieldperiod, error_max);
-	        //printf("periodicfield = (%10f, %10f)\n", periodicfield_saved[res_ind][0][0].loc[0], periodicfield_saved[res_ind][0][0].loc[1]);
-	        ind = 0;
-	        saveR = Xpguess[res_ind][0];
-	        while ( fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]) > tolstep ) {
-		    q0_index[res_ind] = 0;
-		    Xpguess[res_ind][0] = saveR + (ind/tol_window[1])*tolstep;
-		    extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode[res_ind], q0_index+res_ind, N_gridphi_fieldperiod, error_max);
-		    if ( fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]) > tolstep ) {
-		    	Xpguess[res_ind][0] = saveR - (ind/tol_window[1])*tolstep;
-		    	extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode[res_ind], q0_index+res_ind, N_gridphi_fieldperiod, error_max);
-		    }
-		    ind++;
-		    if (ind>tol_window[1]) {
-		    	printf("ERROR: fixed point lost during iteration\n");
-		    	exit(1);
-		    }
-	        }
+	        printf("periodicfield_guess = (%10f, %10f)\n", Xpguess[res_ind][0], Xpguess[res_ind][1]);
+	        extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+		printf("tolstep= %f, move = %f\n", tolstep, fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]));
+	        if ( fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]) > tolstep ) 
+			fixedpoint_toofar = 1;
+	        //ind = 0;
+	        //saveR = Xpguess[res_ind][0];
+	        //while ( fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]) > tolstep ) {
+		//    q0_index[res_ind] = 0;
+		//    Xpguess[res_ind][0] = saveR + (ind/tol_window[1])*tolstep;
+		//    extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+		//    if ( fabs(periodicfield_saved[res_ind][0][0].loc[0] - Xpguess[res_ind][0]) > tolstep ) {
+		//    	Xpguess[res_ind][0] = saveR - (ind/tol_window[1])*tolstep;
+		//    	extsolve_periodicfieldline(NULL, Xpguess[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints[res_ind], pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+		//    }
+		//    ind++;
+		//    if (ind>tol_window[1]) {
+		//    	printf("ERROR: fixed point lost during iteration\n");
+		//    	exit(1);
+		//    }
+	        //}
 	        printf("periodicfield = (%10f, %10f)\n", periodicfield_saved[res_ind][0][0].loc[0], periodicfield_saved[res_ind][0][0].loc[1]);
 	        Res[res_ind] = ext_periodicfield[res_ind][0].Res;
 	        if (fabs(periodicfield_saved[res_ind][0][0].loc[0] - axis_saved[0][0].loc[0]) < reference_change) 
@@ -368,8 +374,10 @@ int main()
 	    rmsqavRes /= num_resonances;
 	    rmsqavRes = sqrt(rmsqavRes);
 	    //objective = rmsqavRes;
-
-	    if ( ( ( fabs(objectiveold) < fabs(objective) ) && (allow == 0) ) && (stuck < stuck_max) ) { //- gradobjective[0]*deltaparam[0] - gradobjective[1]*deltaparam[1]
+	    if ( ( fabs(objectiveold) < fabs(objective)  ) || ( fixedpoint_toofar == 1 ) )
+		    accepted = 0;
+	    else accepted = 1;
+	    if ( ( (accepted == 0) && (allow == 0) ) && (stuck < stuck_max) ) { //- gradobjective[0]*deltaparam[0] - gradobjective[1]*deltaparam[1]
 	        axisguess[0] = axis_saved[0][0].loc[0];
 	        axisguess[1] = 0.0;
 	        for (res_ind=0; res_ind<num_resonances; res_ind++) {
@@ -380,9 +388,11 @@ int main()
 	            //printf("deltaparam[%d] = %f\n", coil_ind, deltaparam[coil_ind]);
 		    //if (stuck>10) deltaparam[coil_ind] *= 4.0; 
 	            allparams.diffparams[coil_ind][0][rowallowed[coil_ind][0]] += deltaparam[coil_ind];
-	            axisguess[0] += gradXp_axis[coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
+	            //axisguess[0] += gradXp_axis[coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
+	            axisguess[0] = axisold[0];
 	            for (res_ind=0; res_ind<num_resonances; res_ind++) {
-	                Xpguess[res_ind][0] += gradXp[res_ind][coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
+	                //Xpguess[res_ind][0] += gradXp[res_ind][coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
+	                Xpguess[res_ind][0] = Xpold[res_ind][0];
 	            }
 	            deltaparam[coil_ind] /= r_decrease;
 	            allparams.diffparams[coil_ind][0][rowallowed[coil_ind][0]] -= deltaparam[coil_ind];
@@ -400,8 +410,8 @@ int main()
 	    printf("objective = %10.10f (previous iteration %10.10f)\n", objective, objectiveold);
 	    printf("rmsqavRes = %10.10f\n", rmsqavRes);
 	    opfactor = opfactor_reference;
-	} while ( ( ( fabs(objectiveold) < fabs(objective) ) && (allow == 0) ) && (stuck < stuck_max) ); //gradobjective[0]*2.0*deltaparam[0] - gradobjective[1]*2.0*deltaparam[1]
-	if ( ( fabs(objective)  < fabs(objective_opt) ) && (allow == 1) ) {
+	} while ( ( (accepted == 0) && (allow == 0) ) && (stuck < stuck_max) ); //gradobjective[0]*2.0*deltaparam[0] - gradobjective[1]*2.0*deltaparam[1]
+	if ( (accepted == 1) && (allow == 1) ) {
 	    printf("STORE OPTIMUM\n");
 	    objective_opt = objective;
 	    coilparams_opt[0] = allparams.diffparams[0][0][rowallowed[0][0]];
@@ -435,9 +445,9 @@ int main()
 	        for (res_ind=0; res_ind<num_resonances; res_ind++) {	
 	            solve_gradRes(shapeResheli[res_ind][coil_ind], Bfield_island[res_ind], periodicfield_saved[res_ind], lambdamu_saved[res_ind], L_fixedpoints[res_ind], N_gridphi_fieldperiod, allparams, coil_ind, 0) ;
 	            solve_gradXp(gradXp[res_ind][coil_ind], Bfield_island[res_ind], periodicfield_saved[res_ind], lambdaXp[res_ind], L_fixedpoints[res_ind], N_gridphi_fieldperiod, allparams, coil_ind, 0) ;
-	            //gradobjective[coil_ind] += 0.25*2.0*Res[res_ind]*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
-	            gradobjective[coil_ind] += 0.25*factor[res_ind]*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
-	            //gradobjective[coil_ind] += 0.25*(Res[res_ind]/fabs(Res[res_ind]))*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
+	            //gradobjective[coil_ind] += 2.0*Res[res_ind]*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
+	            gradobjective[coil_ind] += factor[res_ind]*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
+	            //gradobjective[coil_ind] += (Res[res_ind]/fabs(Res[res_ind]))*shapeResheli[res_ind][coil_ind][rowallowed[coil_ind][0]];
 	            if ( gradXpmag[coil_ind] < sqrt( pow(gradXp[res_ind][coil_ind][0][rowallowed[coil_ind][0]], 2.0) + pow(gradXp[res_ind][coil_ind][1][rowallowed[coil_ind][0]], 2.0) ) )  
 	                gradXpmag[coil_ind] = sqrt( pow(gradXp[res_ind][coil_ind][0][rowallowed[coil_ind][0]], 2.0) + pow(gradXp[res_ind][coil_ind][1][rowallowed[coil_ind][0]], 2.0) );
 	        }
@@ -445,16 +455,16 @@ int main()
 	        //gradobjective[coil_ind] /= (num_resonances*objective);
 		gradobjectivesquared += (gradobjective[coil_ind]*gradobjective[coil_ind]);
 	    }
-	    numb = 0.0;
-	    for (coil_ind=0;coil_ind<2; coil_ind++) {
-	        //limit = (tolstep/gradXpmag)*fabs(gradobjective[coil_ind]/objective);
-	        numb += fabs( (objective/gradobjectivesquared)*gradobjective[coil_ind]*gradXpmag[coil_ind] );
-	        //limit = (tolstep/gradXpmag)*fabs(gradobjectivesquared/(objective*gradobjective[coil_ind]));
-	        printf("gradXpmag = %f, gradobjective[%d] = %f, objective = %f\n", gradXpmag[coil_ind], coil_ind, gradobjective[coil_ind], objective);
-	    }
-	    limit = fabs(tolstep/numb);
-	    if (opfactor > limit) opfactor = limit;
-	    printf("opfactor= %f, limit = %f, tolstep = %f\n", opfactor, limit, tolstep);
+	    //numb = 0.0;
+	    //for (coil_ind=0;coil_ind<2; coil_ind++) {
+	    //    //limit = (tolstep/gradXpmag)*fabs(gradobjective[coil_ind]/objective);
+	    //    numb += fabs( (objective/gradobjectivesquared)*gradobjective[coil_ind]*gradXpmag[coil_ind] );
+	    //    //limit = (tolstep/gradXpmag)*fabs(gradobjectivesquared/(objective*gradobjective[coil_ind]));
+	    //    printf("gradXpmag = %f, gradobjective[%d] = %f, objective = %f\n", gradXpmag[coil_ind], coil_ind, gradobjective[coil_ind], objective);
+	    //}
+	    //limit = fabs(tolstep/numb);
+	    //if (opfactor > limit) opfactor = limit;
+	    //printf("opfactor= %f, limit = %f, tolstep = %f\n", opfactor, limit, tolstep);
 	    for (res_ind=0; res_ind < num_resonances; res_ind++) {
 	    	Xpguess[res_ind][0] = periodicfield_saved[res_ind][0][0].loc[0];			
 	    	Xpguess[res_ind][1] = 0.0;
@@ -467,6 +477,12 @@ int main()
 	        axisguess[0] -= gradXp_axis[coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
 	        for (res_ind=0; res_ind < num_resonances; res_ind++) 
 	            Xpguess[res_ind][0] -= gradXp[res_ind][coil_ind][0][rowallowed[coil_ind][0]]*deltaparam[coil_ind];
+	    }
+	    axisold[0] = axis_saved[0][0].loc[0];
+	    axisold[1] = axis_saved[0][0].loc[1];
+	    for (res_ind=0; res_ind < num_resonances; res_ind++) {
+	        Xpold[res_ind][0] = ext_periodicfield[res_ind][0].loc[0];
+	        Xpold[res_ind][1] = ext_periodicfield[res_ind][0].loc[1];
 	    }
 	    //if (count%2 == 0) coil_ind = 0;
 	    //else coil_ind = 1;
