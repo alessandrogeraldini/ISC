@@ -235,8 +235,11 @@ double *derivative_gradRes(struct field *Bparg, struct field *gradBparg, struct 
 		    extraterm += ( lambdaarg->tangent[row][dep] / Bparg->value[2] ) * ( Rhat[col]*gradBparg[pro].value[row] - Rhat[col]*gradBparg[pro].value[2] * Bparg->value[row] / Bparg->value[2] + Xparg->loc[0] * ( gradBparg[pro].derivative[row][col] - gradBparg[pro].derivative[2][col]*Bparg->value[row]/Bparg->value[2] - Bparg->derivative[2][col]*gradBparg[pro].value[row]/Bparg->value[2] - Bparg->derivative[row][col]*gradBparg[pro].value[2]/Bparg->value[2] + 2.0*Bparg->derivative[2][col]*Bparg->value[row]*gradBparg[pro].value[2]/(Bparg->value[2]*Bparg->value[2]) ) ) ;
 	    	}
 	    	adjfunc[pro] -= ( Xparg->tangent[col][dep] * extraterm ); 
+		//printf("tangent term = %f\n", ( Xparg->tangent[col][dep] * extraterm )); 
+
 	    }
 	    adjfunc[pro] += ( lambdaarg->loc[col] * Xparg->loc[0]*(- gradBparg[pro].value[col] + gradBparg[pro].value[2]* Bparg->value[col] / Bparg->value[2] ) / Bparg->value[2] );
+	    //printf("main term = %f\n", ( lambdaarg->loc[col] * Xparg->loc[0]*(- gradBparg[pro].value[col] + gradBparg[pro].value[2]* Bparg->value[col] / Bparg->value[2] ) / Bparg->value[2] )); 
    	}
     }
     return adjfunc;
@@ -288,7 +291,6 @@ struct field addstructsfield(double num1, struct field *struct1, double num2, st
 	return structsum;
 }
 
-//RK4step(fieldline, varphi, dvarphi, type, m0_fieldperiods, coils, n_coils, n_segs, Bfieldsaved[i]);
 void RK4step(struct position *Xp, double varphi, double dvarphi, struct fieldparams allparams, struct field *Bfield_saved) {
 	int row;
 	struct position *dXp=malloc(4*sizeof(struct position)), Xpold;
@@ -849,10 +851,7 @@ void RK4step_gradtangent(double *number, struct position *Xp, struct position *l
 void RK4step_gradRes(double *number, struct position *Xp, struct position *lambdamu, double varphi, double dvarphi, struct field *Bfield_saved, struct fieldparams allparams, int diffparam_ind1, int diffparam_ind2) {
    int row, num_params=allparams.n_diff;
    struct field **Bpointgrad = malloc(4*sizeof(struct field));
-   double *dnumber[4];
-   double numberold[num_params];
-   //printf("in gradRes eval varphi = %f\n", varphi);
-   //printstructposition("Xp", Xp);
+   double *dnumber[4], numberold[num_params];
    for (row = 0; row < num_params; row++) 
       numberold[row] = number[row];
    Bpointgrad[0] = gradBfield(Xp[0].loc, varphi, allparams, diffparam_ind1, diffparam_ind2);
