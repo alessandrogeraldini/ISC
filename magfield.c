@@ -144,256 +144,256 @@ struct fieldparams fetchparams() {
 	return allparams;
 }
 
-double ***fieldparams(char *type, int *m0_symmetry, int *num_coils, int **num_consts, double **num_params) {
-	int lenline = 1000, row=0, rowst=0, ctr = 0;
-	char line[lenline];
-	int nn, coil_index=0, coilseg_index=0, startstore = 0, count=0;
-	char intstr[5];
-	double ***XXvect_coil= NULL;
-	FILE *file_field;
-
-	file_field = fopen("magfieldparams.txt", "r");
-	if (file_field == NULL) {	
-		printf("Cannot open magfieldparams.txt\n");
-		exit(1);
-	}
-	while (fgets(line, lenline, file_field) != NULL) {	
-		if (strncmp(line, "type", 4) == 0) {
-			row = 4;
-			while (line[row] == 32) {
-				row++;
-			}
-			rowst = row;
-			//printf("%s\n", line);
-			//printf("%s\n", type);
-			while (line[row] != 10) {
-				type[row-rowst] = line[row];
-				row++;
-			}
-		}
-		else if (strncmp(line, "periods", 7) == 0) {
-			row = 7;
-			while (line[row] == 32) {
-				row++;
-			}
-			sscanf(line+row, "%2d", m0_symmetry);
-			printf("m0 = %d\n", *m0_symmetry);
-		}
-		else if (strncmp(line, "ncoils", 6) == 0) {
-			row = 6;
-			while (line[row] == 32) {
-				row++;
-			}
-			sscanf(line+row, "%2d", num_coils);
-			//*num_coils = m0_temp;
-			XXvect_coil =  malloc((*num_coils)*sizeof(double));
-			printf("num_coils = %d\n", *num_coils);
-		}
-		else if ( strncmp(line, "const", 5) == 0 ) {
-			ctr = 0;
-			//n_constparams = malloc(STANDSIZE*sizeof(int));
-			*num_consts = malloc(STANDSIZE*sizeof(int));
-			row= 6;
-			do {
-				if ( (line[row] != 32) && (line[row] != '\n') ) {
-					//printf("line[row]=%c\n", line[row]);
-					intstr[count] = line[row];
-					startstore = 1;
-					count++;
-				}
-				else {
-					if (startstore == 1) {
-						//printf("%s\n", &intstr);
-						//sscanf(intstr, "%4d", (*num_consts)+ctr);
-						(*num_consts)[ctr] = atoi(intstr);
-						ctr++;
-						startstore = 0;
-						count=0;
-					}
-				}
-				row++;
-			} while (line[row-1] != '\n');
-			//n_constparams[1] = 0;
-			for (coil_index=0; coil_index<*num_coils; coil_index++) {
-				if ( strncmp(type, "coil", 4) == 0 ) {
-					// for a coil type all segments of the coil are considered
-					XXvect_coil[coil_index] = malloc((*num_consts)[coil_index]*sizeof(double));
-				}
-				else {
-					// for any other type we either have no coils 
-					// or coils parameterized in some way
-					XXvect_coil[coil_index] = malloc(sizeof(double));
-				}	
-			}
-		}
-		else if ( strncmp(line, "param", 5) == 0 ) {
-			ctr = 0;
-			//(*num_params) = malloc(2*sizeof(int));
-			row= 5;
-			*num_params = linetodata(line, &nn); 
-			printf("num_params[0][1]=%f\n", num_params[0][1]);
-			coil_index = coilseg_index = 0;
-			//n_constparams[1] = 0;
-		}
-		else {
-			nn=0;
-			while (line[nn] != '\n') nn+=1;
-			if (nn>0) {
-				nn=0;
-				XXvect_coil[coil_index][coilseg_index] = linetodata(line, &nn);
-				if (coilseg_index ==  (*num_consts)[coil_index]) {
-					coilseg_index = 0;
-					coil_index++;
-				}
-			}
-		}
-	}
-	rewind(file_field);
-				
-			//if ( strncmp(type, "coil", 4) == 0 ) {
-			//	if ((*num_coils) == 0) {
-			//		n_params = 4;
-			//		if (nn > n_params)
-			//		{
-			//			coil_index += 1;
-			//		}
-			//	}
-			//	else {
-			//		XXvect_coil[coil_index][coilseg_index] = malloc(4*sizeof(double));
-			//		for (row=0; row<4; row++) 
-			//		XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
-			//		coilseg_index+=1;
-			//		if (coilseg_index == (*num_consts)[coil_index]) {
-			//			coil_index+=1;
-			//			coilseg_index=0; 
-			//		}
-			//	}
-			//}
-			//else if ( strncmp(type, "Reim", 4) == 0 ) {
-			//	if (isdigit(line[0]) != 0) {
-			//		coil_index += 1;
-			//		n_params = nn;
-			//		XXvect_coil = calloc(1,sizeof(double));
-			//		*XXvect_coil = calloc(1,sizeof(double));
-			//		**XXvect_coil = calloc(n_params,sizeof(double));
-			//		for (row=0;row<n_params;row++) {
-			//			XXvect_coil[0][0][row] = *(storevals+row); 
-			//			//printf("storevals= %f\n", *(storevals+row));
-			//		}
-			//	}
-			//}
-			//else if ( strncmp(type, "heli", 4) == 0 ) {
-			//	//printf("%s\n", line);
-			//	//printf("coil_index=%d\n", coil_index);
-			//	if (isdigit(line[0]) != 0) {
-			//		n_params = nn;
-			//		printf("n_params = %d\n", n_params);
-			//	}
-			//}
-			//}
-			//free(storevals);
-	//num_coils_temp = coil_index;
-	//num_segs_temp = calloc(coil_index,sizeof(int));
-	//max_num_segs = 0;
-	//coil_index = 0;
-	//if (strncmp(type, "coil", 4) == 0) {
-	//	*num_consts = calloc(coil_index,sizeof(int));
-	//	while (fgets(line, lenline, file_field) != NULL)
-	//	{	
-	//		storevals = linetodata(line, &nn);
-	//		if (nn == 4)
-	//		{
-	//			coilseg_index += 1; 
-	//		}
-	//		else if (nn > 4)
-	//		{
-	//			num_segs_temp[coil_index] = coilseg_index;
-	//			coil_index += 1;
-	//			if (coilseg_index > max_num_segs)
-	//			{
-	//				max_num_segs = coilseg_index;
-	//			}
-	//			coilseg_index = 0;
-	//		}
-	//	}
-	//}
-	//else if (strncmp(type, "heli", 4) == 0) {
-	//	printf("n_params = %d\n", n_params);
-	//	*num_consts = calloc(n_params,sizeof(int));
-	//	coil_index = 0;
-	//	while (fgets(line, lenline, file_field) != NULL) {
-	//		storevals = linetodata(line, &nn);
-	//		printf("nn = %d, n_params=%d\n", nn, n_params);
-	//		if (isdigit(line[0]) != 0) {
-	//			XXvect_coil[0][coil_index] = malloc(nn*sizeof(double));
-	//			for (row=0; row< nn; row++) {
-	//				printf("row = %d/%d\n", row, nn);
-	//				XXvect_coil[0][coil_index][row] = storevals[row];	
-	//			}
-	//			coil_index += 1;
-	//		}
-	//	}
-	//}
-	//else {
-	//	max_num_segs = 1;
-	//	//*num_consts = (*num_params);
-	//}
-	//printf("num_coils_temp = %d\n", num_coils_temp);
-	////printf("max_num_segs = %d\n", max_num_segs);
-	//if (strncmp(type, "coil", 4) == 0) {
-	//	coil_index = 0;
-	//	coilseg_index = 0;
-	//	XXvect_coil = calloc(num_coils_temp,sizeof(double));
-	//	for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
-	//	{
-	//		XXvect_coil[coil_index] = calloc(max_num_segs,sizeof(double));
-	//		for (coilseg_index = 0; coilseg_index < max_num_segs; coilseg_index ++)
-	//		{
-	//				XXvect_coil[coil_index][coilseg_index] = calloc(n_params,sizeof(double));
-	//		}
-	//	}
-	//	coil_index = 0;
-	//	coilseg_index = 0;
-	//	rewind(file_field);
-	//	while (fgets(line, lenline, file_field) != NULL)
-	//	{	
-	//		//printf("coil_index=%d/%d\n", coil_index, num_coils_temp-1);
-	//		storevals = linetodata(line, &nn);
-	//		//printf("nn=%d\n", nn);
-	//		if (nn == n_params)
-	//		{
-	//			//printf("coilseg_index=%d/%d\n", coilseg_index, max_num_segs-1);
-	//			for (row=0;row<n_params;row++) {
-	//				XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
-	//				//printf("XX[%d] = %f\n", row, XXvect_coil[coil_index][coilseg_index][row]);
-	//			}
-	//			coilseg_index += 1; 
-	//		}
-	//		if (nn > n_params)
-	//		{
-	//			coil_index += 1;
-	//			coilseg_index = 0;
-	//		}
-	//		free(storevals);
-	//	}
-	//	fclose(file_field);
-	//	*num_coils = num_coils_temp;
-	//	*num_consts = num_segs_temp;
-	//}
-	//else {
-	//	*num_coils = n_params;
-	//}
-	////printf("num_coils = %d\n", *num_coils);
-	////for (coil_index=0; coil_index< *num_coils; coil_index++) {
-	////	printf("%d\n", (*num_segs)[coil_index]);
-	////}
-	//XXvect_coil[0][0][2] += 0.00;// check shape gradient (first entry)
-	//clock_t int2 = clock();
-	//printf("params = %f %f %f\n", XXvect_coil[0][0][0], XXvect_coil[0][0][1],XXvect_coil[0][0][2]);
-	printf("type = %s\n", type);
-	//printf("Time out of coil module: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
-	return XXvect_coil;
-}
+//double ***fieldparams(char *type, int *m0_symmetry, int *num_coils, int **num_consts, double **num_params) {
+//	int lenline = 1000, row=0, rowst=0, ctr = 0;
+//	char line[lenline];
+//	int nn, coil_index=0, coilseg_index=0, startstore = 0, count=0;
+//	char intstr[5];
+//	double ***XXvect_coil= NULL;
+//	FILE *file_field;
+//
+//	file_field = fopen("magfieldparams.txt", "r");
+//	if (file_field == NULL) {	
+//		printf("Cannot open magfieldparams.txt\n");
+//		exit(1);
+//	}
+//	while (fgets(line, lenline, file_field) != NULL) {	
+//		if (strncmp(line, "type", 4) == 0) {
+//			row = 4;
+//			while (line[row] == 32) {
+//				row++;
+//			}
+//			rowst = row;
+//			//printf("%s\n", line);
+//			//printf("%s\n", type);
+//			while (line[row] != 10) {
+//				type[row-rowst] = line[row];
+//				row++;
+//			}
+//		}
+//		else if (strncmp(line, "periods", 7) == 0) {
+//			row = 7;
+//			while (line[row] == 32) {
+//				row++;
+//			}
+//			sscanf(line+row, "%2d", m0_symmetry);
+//			printf("m0 = %d\n", *m0_symmetry);
+//		}
+//		else if (strncmp(line, "ncoils", 6) == 0) {
+//			row = 6;
+//			while (line[row] == 32) {
+//				row++;
+//			}
+//			sscanf(line+row, "%2d", num_coils);
+//			//*num_coils = m0_temp;
+//			XXvect_coil =  malloc((*num_coils)*sizeof(double));
+//			printf("num_coils = %d\n", *num_coils);
+//		}
+//		else if ( strncmp(line, "const", 5) == 0 ) {
+//			ctr = 0;
+//			//n_constparams = malloc(STANDSIZE*sizeof(int));
+//			*num_consts = malloc(STANDSIZE*sizeof(int));
+//			row= 6;
+//			do {
+//				if ( (line[row] != 32) && (line[row] != '\n') ) {
+//					//printf("line[row]=%c\n", line[row]);
+//					intstr[count] = line[row];
+//					startstore = 1;
+//					count++;
+//				}
+//				else {
+//					if (startstore == 1) {
+//						//printf("%s\n", &intstr);
+//						//sscanf(intstr, "%4d", (*num_consts)+ctr);
+//						(*num_consts)[ctr] = atoi(intstr);
+//						ctr++;
+//						startstore = 0;
+//						count=0;
+//					}
+//				}
+//				row++;
+//			} while (line[row-1] != '\n');
+//			//n_constparams[1] = 0;
+//			for (coil_index=0; coil_index<*num_coils; coil_index++) {
+//				if ( strncmp(type, "coil", 4) == 0 ) {
+//					// for a coil type all segments of the coil are considered
+//					XXvect_coil[coil_index] = malloc((*num_consts)[coil_index]*sizeof(double));
+//				}
+//				else {
+//					// for any other type we either have no coils 
+//					// or coils parameterized in some way
+//					XXvect_coil[coil_index] = malloc(sizeof(double));
+//				}	
+//			}
+//		}
+//		else if ( strncmp(line, "param", 5) == 0 ) {
+//			ctr = 0;
+//			//(*num_params) = malloc(2*sizeof(int));
+//			row= 5;
+//			*num_params = linetodata(line, &nn); 
+//			printf("num_params[0][1]=%f\n", num_params[0][1]);
+//			coil_index = coilseg_index = 0;
+//			//n_constparams[1] = 0;
+//		}
+//		else {
+//			nn=0;
+//			while (line[nn] != '\n') nn+=1;
+//			if (nn>0) {
+//				nn=0;
+//				XXvect_coil[coil_index][coilseg_index] = linetodata(line, &nn);
+//				if (coilseg_index ==  (*num_consts)[coil_index]) {
+//					coilseg_index = 0;
+//					coil_index++;
+//				}
+//			}
+//		}
+//	}
+//	rewind(file_field);
+//				
+//			//if ( strncmp(type, "coil", 4) == 0 ) {
+//			//	if ((*num_coils) == 0) {
+//			//		n_params = 4;
+//			//		if (nn > n_params)
+//			//		{
+//			//			coil_index += 1;
+//			//		}
+//			//	}
+//			//	else {
+//			//		XXvect_coil[coil_index][coilseg_index] = malloc(4*sizeof(double));
+//			//		for (row=0; row<4; row++) 
+//			//		XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
+//			//		coilseg_index+=1;
+//			//		if (coilseg_index == (*num_consts)[coil_index]) {
+//			//			coil_index+=1;
+//			//			coilseg_index=0; 
+//			//		}
+//			//	}
+//			//}
+//			//else if ( strncmp(type, "Reim", 4) == 0 ) {
+//			//	if (isdigit(line[0]) != 0) {
+//			//		coil_index += 1;
+//			//		n_params = nn;
+//			//		XXvect_coil = calloc(1,sizeof(double));
+//			//		*XXvect_coil = calloc(1,sizeof(double));
+//			//		**XXvect_coil = calloc(n_params,sizeof(double));
+//			//		for (row=0;row<n_params;row++) {
+//			//			XXvect_coil[0][0][row] = *(storevals+row); 
+//			//			//printf("storevals= %f\n", *(storevals+row));
+//			//		}
+//			//	}
+//			//}
+//			//else if ( strncmp(type, "heli", 4) == 0 ) {
+//			//	//printf("%s\n", line);
+//			//	//printf("coil_index=%d\n", coil_index);
+//			//	if (isdigit(line[0]) != 0) {
+//			//		n_params = nn;
+//			//		printf("n_params = %d\n", n_params);
+//			//	}
+//			//}
+//			//}
+//			//free(storevals);
+//	//num_coils_temp = coil_index;
+//	//num_segs_temp = calloc(coil_index,sizeof(int));
+//	//max_num_segs = 0;
+//	//coil_index = 0;
+//	//if (strncmp(type, "coil", 4) == 0) {
+//	//	*num_consts = calloc(coil_index,sizeof(int));
+//	//	while (fgets(line, lenline, file_field) != NULL)
+//	//	{	
+//	//		storevals = linetodata(line, &nn);
+//	//		if (nn == 4)
+//	//		{
+//	//			coilseg_index += 1; 
+//	//		}
+//	//		else if (nn > 4)
+//	//		{
+//	//			num_segs_temp[coil_index] = coilseg_index;
+//	//			coil_index += 1;
+//	//			if (coilseg_index > max_num_segs)
+//	//			{
+//	//				max_num_segs = coilseg_index;
+//	//			}
+//	//			coilseg_index = 0;
+//	//		}
+//	//	}
+//	//}
+//	//else if (strncmp(type, "heli", 4) == 0) {
+//	//	printf("n_params = %d\n", n_params);
+//	//	*num_consts = calloc(n_params,sizeof(int));
+//	//	coil_index = 0;
+//	//	while (fgets(line, lenline, file_field) != NULL) {
+//	//		storevals = linetodata(line, &nn);
+//	//		printf("nn = %d, n_params=%d\n", nn, n_params);
+//	//		if (isdigit(line[0]) != 0) {
+//	//			XXvect_coil[0][coil_index] = malloc(nn*sizeof(double));
+//	//			for (row=0; row< nn; row++) {
+//	//				printf("row = %d/%d\n", row, nn);
+//	//				XXvect_coil[0][coil_index][row] = storevals[row];	
+//	//			}
+//	//			coil_index += 1;
+//	//		}
+//	//	}
+//	//}
+//	//else {
+//	//	max_num_segs = 1;
+//	//	//*num_consts = (*num_params);
+//	//}
+//	//printf("num_coils_temp = %d\n", num_coils_temp);
+//	////printf("max_num_segs = %d\n", max_num_segs);
+//	//if (strncmp(type, "coil", 4) == 0) {
+//	//	coil_index = 0;
+//	//	coilseg_index = 0;
+//	//	XXvect_coil = calloc(num_coils_temp,sizeof(double));
+//	//	for (coil_index = 0; coil_index < num_coils_temp; coil_index ++)
+//	//	{
+//	//		XXvect_coil[coil_index] = calloc(max_num_segs,sizeof(double));
+//	//		for (coilseg_index = 0; coilseg_index < max_num_segs; coilseg_index ++)
+//	//		{
+//	//				XXvect_coil[coil_index][coilseg_index] = calloc(n_params,sizeof(double));
+//	//		}
+//	//	}
+//	//	coil_index = 0;
+//	//	coilseg_index = 0;
+//	//	rewind(file_field);
+//	//	while (fgets(line, lenline, file_field) != NULL)
+//	//	{	
+//	//		//printf("coil_index=%d/%d\n", coil_index, num_coils_temp-1);
+//	//		storevals = linetodata(line, &nn);
+//	//		//printf("nn=%d\n", nn);
+//	//		if (nn == n_params)
+//	//		{
+//	//			//printf("coilseg_index=%d/%d\n", coilseg_index, max_num_segs-1);
+//	//			for (row=0;row<n_params;row++) {
+//	//				XXvect_coil[coil_index][coilseg_index][row] = *(storevals+row); 
+//	//				//printf("XX[%d] = %f\n", row, XXvect_coil[coil_index][coilseg_index][row]);
+//	//			}
+//	//			coilseg_index += 1; 
+//	//		}
+//	//		if (nn > n_params)
+//	//		{
+//	//			coil_index += 1;
+//	//			coilseg_index = 0;
+//	//		}
+//	//		free(storevals);
+//	//	}
+//	//	fclose(file_field);
+//	//	*num_coils = num_coils_temp;
+//	//	*num_consts = num_segs_temp;
+//	//}
+//	//else {
+//	//	*num_coils = n_params;
+//	//}
+//	////printf("num_coils = %d\n", *num_coils);
+//	////for (coil_index=0; coil_index< *num_coils; coil_index++) {
+//	////	printf("%d\n", (*num_segs)[coil_index]);
+//	////}
+//	//XXvect_coil[0][0][2] += 0.00;// check shape gradient (first entry)
+//	//clock_t int2 = clock();
+//	//printf("params = %f %f %f\n", XXvect_coil[0][0][0], XXvect_coil[0][0][1],XXvect_coil[0][0][2]);
+//	printf("type = %s\n", type);
+//	//printf("Time out of coil module: %f\n", (double) (int2-start)/CLOCKS_PER_SEC);
+//	return XXvect_coil;
+//}
 		
 struct field BReim(double RR, double ZZ, double varphi, int m0_symmetry, double iota0, double iota1, double *epsilon, int *k_theta, int size_epsilon) { // all working
 		int ind;
@@ -526,8 +526,6 @@ struct field BReim(double RR, double ZZ, double varphi, int m0_symmetry, double 
 		//printf("Exit Reiman magnetic field evaluation: OK\n");
 		return mag;
 }
-
-
 
 struct field Bcoil(double RR, double ZZ, double varphi, double ***coils, int n_params, int *num_segs) {
 	/*

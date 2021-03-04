@@ -323,6 +323,7 @@ The first guess of each periodic field line position is in fixedpoints.txt
 Each line (except the first one) in the file contains the following: 
 R, Z, pol_mode, tor_mode
 */
+	printf("YOLO\n\n\n\n\n\n\n\n");
     FILE *island_Reiman;
     if ( (island_Reiman = fopen("island_Reiman.txt", "w")) == NULL ) {
 	printf("Error opening file island_Reiman.txt");
@@ -330,6 +331,7 @@ R, Z, pol_mode, tor_mode
     if (testwidth_Reim == 1) study_Reim = 1; 
     do {
     for (res_ind=0; res_ind< num_resonances; res_ind++) {
+	printf("Resonance number %d\n", res_ind+1);
 	q0_index[res_ind] = 0;
     	if (tor_mode[res_ind] % m0 == 0) L_fixedpoints = pol_mode[res_ind];	
     	else L_fixedpoints = m0*pol_mode[res_ind];
@@ -344,7 +346,7 @@ R, Z, pol_mode, tor_mode
     	ext_periodicfield_FD[0] = malloc(L_fixedpoints*sizeof(struct ext_position));
     	ext_periodicfield_FD[1] = malloc(L_fixedpoints*sizeof(struct ext_position));
     	printf("Entering function that solves for the periodic field line in extended way\n");
-    	search[res_ind]  = extsolve_periodicfieldline(NULL, fixedpoint_RZ[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+    	search[res_ind]  = extsolve_periodicfieldline(fixedpoint_RZ[res_ind], ext_periodicfield[res_ind], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
 	printf("eperp = (%f, %f)\nepar = (%f, %f)\n", ext_periodicfield[0][0].eperp[0], ext_periodicfield[0][0].eperp[1], ext_periodicfield[0][0].epar[0], ext_periodicfield[0][0].epar[1]);
 	printf("q0 = %d\n", q0_index[0]);
     	if (search[res_ind] == 0) {
@@ -588,7 +590,7 @@ Note for now the index 0 below because I only print to file gradients with respe
 		                    printf("q0_index = %d\n", q0_index[res_ind]);
 // having perturbed the parameter, find the new periodic field line position, the new residue, circumference, Sigma and width
 // q0_index+res_ind already points to a non-zero value, so it won't be reassigned below
-		    	    	    extsolve_periodicfieldline(NULL, ext_periodicfield[res_ind][0].loc, ext_periodicfield_FD[1], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+		    	    	    extsolve_periodicfieldline(ext_periodicfield[res_ind][0].loc, ext_periodicfield_FD[1], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
 		    	    	    printf("q0_index = %d\n", q0_index[res_ind]);
 		    	    	    //printf("q0_index = %d\n", q0_index[res_ind]);
 // step back down to original parameter
@@ -597,7 +599,7 @@ Note for now the index 0 below because I only print to file gradients with respe
 // step down for centred difference
 			            allparams.diffparams[coil_ind][seg_ind][param_ind] -= (delta*savedcoilseg);
 // q0_index+res_ind already points to a non-zero value, so it won't be reassigned here
-		    	    	    extsolve_periodicfieldline(NULL, ext_periodicfield[res_ind][0].loc, ext_periodicfield_FD[0], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
+		    	    	    extsolve_periodicfieldline(ext_periodicfield[res_ind][0].loc, ext_periodicfield_FD[0], periodicfield_saved[res_ind], Bfield_island[res_ind], axis, allparams, m0, L_fixedpoints, pol_mode+res_ind, q0_index+res_ind, N_gridphi_fieldperiod, error_max);
 		    	    	    checknormgradcirc[res_ind][coil_ind][seg_ind][param_ind][delta_ind] = ( log(ext_periodicfield_FD[1][0].circ) - log(ext_periodicfield_FD[0][0].circ) ) / (2.0*delta*savedcoilseg);
 		    	    	    printf("q0_index = %d\n", q0_index[res_ind]);
 		    	    	    checknormgradRes[res_ind][coil_ind][seg_ind][param_ind][delta_ind] = ( log(fabs(ext_periodicfield_FD[1][0].Res)) - log(fabs(ext_periodicfield_FD[0][0].Res)) ) / (2.0*delta*savedcoilseg);
